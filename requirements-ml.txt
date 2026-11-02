@@ -1,0 +1,5 @@
+# Requirements for preliminary scikit-learn baseline training.
+# Python 3.11+ (tested target: Python 3.12 on Windows).
+numpy>=1.26,<3
+pandas>=2.2,<3
+scikit-learn>=1.5,<2
