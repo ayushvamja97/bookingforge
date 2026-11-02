@@ -164,6 +164,67 @@ should use an **inner training-only chronological evaluation** to justify
 any predictor design change (such as removing a calendar-year value). We
 should not repeatedly optimize on the same full validation cohort.
 
+## Experiment F — prediction sensitivity (verified locally)
+
+Local result on **2026-11-02**: **50/50 tests passed**. Repeating the original
+30-epoch NumPy MLP and fixed logistic regression confirmed that changing
+**only** `arrival_date_year` in validation features to the training median
+of **2016** moved MLP average cancellation predictions from **0.986 to 0.684**.
+
+For validation records arriving in **2017** (n=10,504), average neural
+predictions moved from **0.998 to 0.442** under that synthetic replacement.
+For **2016** arrivals (n=8,835), the original mean **0.971** did not change,
+because their year was already 2016. This makes arrival-year dependency
+a substantial contributor to the extreme 2017 predictions, **not the only
+source of overconfidence**.
+
+Replacing `lead_time` with its training median (72 days) moved the
+overall MLP mean **0.986 to 0.993**. This was a much smaller model
+response, with no claim that it improves real-world predictions.
+
+These are **label-blind, synthetic input interventions**, not new Brier
+scores or valid production feature transformations. The original
+outer-validation diagnostics have already been inspected to generate
+hypotheses, so that cohort can no longer be described as independent
+for future model selection.
+
+## Experiment G — strictly inner chronological year ablation (pending)
+
+To decide whether raw calendar year deserves a place in our exploratory
+feature set, `bookingforge.inner_year_ablation` performs an ablation using
+a *different, earlier* temporal split. Neither outer-validation labels
+nor final-test labels are accessed:
+
+- Inner fit: reservation proxy created **on/before March 31, 2016**, with
+  final outcome known on/before March 31, 2016.
+- Inner validation: reservation proxy created **April 1–May 31, 2016**,
+  scored retrospectively if final outcome was known by **August 31, 2016**.
+- Features: the original 11 provisional predictors versus the same 10
+  **without `arrival_date_year`**.
+- Algorithms: unchanged logistic regression and custom one-hidden-layer
+  NumPy MLP (32 units, 30 epochs, seed 42); preprocessing fit separately
+  on the inner training features for each feature variant.
+- Comparison: inner ROC AUC, average precision, Brier score,
+  predicted probability mean and extreme-confidence fraction. All
+  eligible rows are used, **no subsampling**.
+- This split is **selected by outcome maturity**, not an unbiased
+  prospective cohort. Any measured differences are *diagnostic*; this
+  experiment does not justify declaring a production-ready model.
+- The earlier outer validation motivated this hypothesis, so internal
+  results are not a guarantee of independent confirmation.
+
+Run the inner experiment from PowerShell:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
+.\.venv\Scripts\python.exe -m bookingforge.inner_year_ablation --csv data/raw/hotels.csv --output reports/inner_year_ablation.json --mlp-epochs 30
+```
+
+Do not overwrite the previously verified validation and sensitivity reports.
+
 ## Limitations and next scientific steps
 
 1. The arrival-bounded source is not a complete cohort of bookings made
