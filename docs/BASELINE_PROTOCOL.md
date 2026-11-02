@@ -1,47 +1,50 @@
-# Baseline experiment v1: methodological contract and limitations
+# BookingForge: retrospective full-validation protocol (v2)
 
-This is an **experimental engineering baseline**, not a validated hotel-cancellation prediction service.
+**Status:** exploratory research benchmark, not a deployed or statistically unbiased hotel-cancellation predictor. The previous v1 subset-only validation score must not be compared directly to v2 scores.
 
-## Research question
-Can a logistic regression classifier improve discrimination/calibration over a constant prior-probability predictor using a conservative set of booking-time proxy variables?
+## Target
 
-## Observation and split
-- Reconstruct reservation creation time as `arrival_date - lead_time`. These timestamps are **not verified booking event logs**.
-- Train creation cohort: created on/before **2016-08-31**, with final-status date on/before **2016-08-31**.
-- Validation creation cohort: created between **2016-09-01** and **2016-12-31**, with final-status date on/before **2016-12-31**.
-- Test creation cohort: **2017-01-01** through **2017-08-31**. **Not evaluated or tuned on in this first experiment.**
-- Never use `reservation_status`, `reservation_status_date`, or `is_canceled` as model predictors. Dates of final outcomes are checked solely for cohort eligibility.
-- Model selection for this first benchmark is limited to the single specified logistic baseline. The test set must remain sealed while we study the validity of the benchmark.
+Predict whether a booking ultimately ends as a cancellation or no-show (binary `is_canceled`), from a conservative list of booking-time **proxy** attributes. The source lacks immutable booking-creation timestamps and historical feature snapshots. Approximate the booking date as **arrival minus lead_time**.
 
-## Predictor features
-`hotel`, `lead_time`, arrival year/month/day, weekday/weekend stay lengths, adults/children/babies, and `reserved_room_type`.
+## Chronology and outcome maturity
 
-Feature names are also validated against `src/bookingforge/cohort.py` on module import. All are **provisional booking-time proxies**. We do NOT know whether the stored values are their original values from reservation creation.
+- **Training booking-creation cohort:** booking date on/before **2016-08-31**.
+- **Training labels:** only those with final status date on/before **2016-08-31**. This yields 63,334 eligible records in the initial local audit. No outcomes finalized later are used for training.
+- **Validation booking-creation cohort:** booked from **2016-09-01** through **2016-12-31**. **Include every record with a valid eventual final outcome**, even if its outcome became known in 2017. This yields 19,339 records in the local audit. Retrospective validation may score them, but may **never** fit model weights, scalers, imputers, categories, thresholds, or hyperparameters on their labels.
+- **Final test booking-creation cohort:** created from **2017-01-01** through **2017-08-31**. Code must not read final test status/target fields.
+- The historical training fit date is August 31, 2016. Validation scores represent a *retrospective backtest when eventual outcomes become known*, not a contemporaneous score obtainable on Dec 31, 2016.
+- Temporal validation allows comparing the models on the *same* 19,339 retrospective validation rows without selecting only fast-resolving outcomes.
 
-## Preprocessing and metrics
-- On training data only, fit numeric median imputation, scaling, and categorical one-hot encoding with unknown-category handling.
-- Fit dummy prior-probability classifier and logistic regression.
-- On selected validation records, report ROC AUC, average precision, Brier score, log loss, accuracy and F1 at an **arbitrary 0.5 threshold**.
-- Save input SHA256, cohort sizes, selected feature names, result metrics, and limitations into `reports/baseline_validation.json`.
-- No test-set metrics are computed. No model is deployed or production-calibrated.
+## Models and comparison
 
-## Why results can be biased
-1. **Outcome-dependent selection.** Filtering to statuses known by a cutoff drops still-open bookings. The validation cohort in particular overrepresents fast-resolving outcomes; these are not a representative sample of all booked reservations.
-2. **Arrival-bounded extraction.** The dataset only contains arrivals in 2015-07 through 2017-08; training/validation by reconstructed creation date is not a complete population of bookings created then. E.g. a booking created in 2016 with arrival beyond Aug 2017 is absent.
-3. **Feature drift.** We lack booking-time snapshots and may unknowingly use later-updated fields, despite the conservative allowlist.
-4. **No contemporaneous deployment inference.** Performance on selected historical resolved records is not evidence of a hotel's real expected performance, revenue or decision improvement.
+- Baseline: constant prior probability estimated from **training labels only**.
+- Logistic regression: scikit-learn, fit on **all** eligible training records.
+- Custom k-nearest neighbors: exact Euclidean squared distance in NumPy using batches to constrain memory, uniform vote with fixed `k=15`, and **all** eligible training records for neighbor lookup. We explicitly do not use scikit-learn KNeighborsClassifier for predictions.
+- Same numeric median imputer, standard scaler and categorical one-hot encoder fit **only** on training; validation is transformed without fitting.
+- No random subsampling of training or validation rows.
+- Model comparison uses ROC AUC, average precision, Brier score, log loss, accuracy and F1 at a **fixed** 0.5 classification threshold. No hyperparameters are tuned in this initial comparison.
+- Reproducible inputs: raw CSV SHA256, source-code version in Git, environment versions, kNN k, batch size, and resulting aggregate JSON report. No raw rows are committed.
 
-## Run
-From the repository root in PowerShell:
+## Remaining scientific limitations
+
+1. **Historical training is label-selected.** Training on only outcomes resolved by the August 2016 cutoff overrepresents early-resolving bookings. Do not report model quality as an unbiased estimate of overall booking risk.
+2. **Arrival-window selection / right truncation.** The dataset is collected by arrivals between July 2015 and August 2017, so reconstructed creation-time cohorts do not represent all bookings created in those periods.
+3. **Feature-timing uncertainty.** Predictor values are not proven to be the values recorded at the original booking date; even fields with plausible names can be edited later.
+4. **Shared booking records / duplicate structures.** No unique event log or booking IDs permit a robust independence/group-level leakage audit.
+5. **Model selection without an untouched final test.** The final cohort remains closed until the model and evaluation protocol have been frozen and independently reviewed.
+6. **No real hotel policy.** Future capacity/cost experiments must be labeled simulated, with assumed constraints and costs.
+
+**Interpretation:** This is a legitimate fully computed exploratory algorithmic comparison, with documented threats to validity. It is *not* yet evidence for production cancellation forecasting. Better-captured booking snapshots or a time-to-event/censoring-aware research formulation would strengthen deployment claims.
+
+## Commands
+
+From the project root (PowerShell):
 
 ```powershell
-python -m pip install -r requirements-ml.txt
 $env:PYTHONPATH = (Join-Path (Get-Location) "src")
-python -m unittest discover -s tests -v
-python -m bookingforge.train_baseline --csv data/raw/hotels.csv --output reports/baseline_validation.json
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m bookingforge.train_baseline --csv data/raw/hotels.csv --output reports/baseline_validation_v2.json
+.\.venv\Scripts\python.exe -m bookingforge.compare_knn --csv data/raw/hotels.csv --output reports/full_knn_comparison.json --k 15 --batch-size 64
 ```
 
-The raw CSV is ignored by Git. Do not commit it. Do not publish raw booking records. Aggregate metrics are intended for documentation after local verification.
-
-## Next research task after baseline
-Evaluate an *observation-window/survival-aware* formulation or alternative dataset, accounting for unsettled outcomes rather than discarding them without modeling censoring. Only then can a credible benchmark support claims about generalization.
+The second experiment performs its own logistic/prior baseline on exactly the same full training and validation sets as custom kNN; do not compare its metrics to the older 0.8315 ROC AUC v1 result.
