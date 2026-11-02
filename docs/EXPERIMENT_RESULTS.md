@@ -115,50 +115,6 @@ or both. A data/feature bug is not ruled out. The result alone does **not**
 prove which feature caused the failure. We must not assert that training
 longer or adding GPU capacity will fix probability calibration.
 
-## Experiment E — input distribution drift audit (pending local verification)
-
-A separate `bookingforge.feature_drift` module compares numeric
-means/ranges against historical training support and identifies unseen
-categorical values using **features only**. It uses outcome dates and labels
-for *historical cohort eligibility* through the established loader, but does
-not use target values to calculate feature drift, and never examines test
-outcomes.
-
-PowerShell:
-
-```powershell
-git pull --ff-only origin main
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-$env:PYTHONPATH = (Join-Path (Get-Location) "src")
-.\.venv\Scripts\python.exe -m bookingforge.feature_drift --csv data/raw/hotels.csv --output reports/feature_drift.json
-```
-
-This is a **diagnostic**, not a new training run or model selection.
-No validation-driven hyperparameter adjustments should be made based solely
-on repeated exploration of the same cohort.
-
-## Limitations and next scientific steps
-
-1. The arrival-bounded source is not a complete cohort of bookings made
-   in any chosen creation period.
-2. Historical labels resolved by a cutoff are a selected subset; training
-   on them does not correct for censoring or outcome-dependent observation.
-3. We do not have immutable feature snapshots. Temporal feature availability
-   is plausible but unverified.
-4. The full retrospective validation cohort has eventual outcomes and may
-   fairly compare algorithms **on this dataset**, but it is not a
-   prospective deployment evaluation.
-5. Repeatedly tuning hyperparameters on the same validation cohort can
-   overfit selection. Freeze the experiment design; when optimization
-   becomes necessary, create an *inner* training-only time split.
-6. A later fixed-protocol final-test evaluation may be appropriate after
-   resolving or explicitly restricting the deployment claim; not before.
-7. Confidence intervals, lead-time/hotel subgroup errors, and probability
-   calibration should be assessed in separate documented experiments.
-8. Forecasting, Poisson-binomial DP, Monte Carlo and optimization must
-   separately declare their own observation times and simulation assumptions.
-
-
 ## Experiment E — input feature drift (verified locally)
 
 Local audit on **2026-11-02**: **46/46 automated tests passed**. The
@@ -207,3 +163,24 @@ If sensitivity is substantial, the appropriate next algorithmic comparison
 should use an **inner training-only chronological evaluation** to justify
 any predictor design change (such as removing a calendar-year value). We
 should not repeatedly optimize on the same full validation cohort.
+
+## Limitations and next scientific steps
+
+1. The arrival-bounded source is not a complete cohort of bookings made
+   in any chosen creation period.
+2. Historical labels resolved by a cutoff are a selected subset; training
+   on them does not correct for censoring or outcome-dependent observation.
+3. We do not have immutable feature snapshots. Temporal feature availability
+   is plausible but unverified.
+4. The full retrospective validation cohort has eventual outcomes and may
+   fairly compare algorithms **on this dataset**, but it is not a
+   prospective deployment evaluation.
+5. Repeatedly tuning hyperparameters on the same validation cohort can
+   overfit selection. Freeze the experiment design; when optimization
+   becomes necessary, create an *inner* training-only time split.
+6. A later fixed-protocol final-test evaluation may be appropriate after
+   resolving or explicitly restricting the deployment claim; not before.
+7. Confidence intervals, lead-time/hotel subgroup errors, and probability
+   calibration should be assessed in separate documented experiments.
+8. Forecasting, Poisson-binomial DP, Monte Carlo and optimization must
+   separately declare their own observation times and simulation assumptions.
