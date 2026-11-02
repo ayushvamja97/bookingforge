@@ -12,7 +12,9 @@ Any future inventory/revenue analysis must use explicitly synthetic assumptions.
 - Public historical dataset: **119,390 rows, 32 columns**, arrivals July
   2015 to August 2017. Individual raw booking rows are not stored in Git.
 - **67/67 automated tests passed** locally on **2026-11-02** for the fixed-model
-  reliability audit at commit `d217ddd`; five new portable artifact tests await Windows verification.
+  reliability audit. Full-data model export subsequently succeeded with
+  **zero save/reload prediction difference for both networks**. New artifact and
+  FastAPI tests remain unverified on Windows (expected total **77**).
 - Original algorithms: NumPy **exact kNN** and **one-hidden-layer MLP** with
   explicit analytic backpropagation, Adam and finite-difference gradient tests.
 - Comparison models: scikit-learn logistic regression and constant
@@ -156,6 +158,38 @@ Both model variations remain **research-only historical arrival
 classifiers**, not validated booking-time predictions. The
 `models/` and `reports/` directories are excluded from Git.
 
+## Next verification: local FastAPI inference
+
+The Python module `bookingforge.api` exposes an **opt-in local-only**
+research interface backed by the saved NumPy models. It loads the
+two artifacts once on startup, checks their SHA256 integrity,
+accepts only validated synthetic 2015–2016 reservation features,
+and rejects cancellation/status fields. Prediction requests never
+trigger model retraining and never use historical validation targets.
+
+**Optional dependencies:** FastAPI, Uvicorn, and HTTPX are pinned
+separately in `requirements-api.txt`. Install the extras before
+running the extended test suite:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m pip install -r requirements-api.txt
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = (Join-Path (Get-Location) "src")
+.\.venv\Scripts\python.exe -m uvicorn bookingforge.api:app --host 127.0.0.1 --port 8000
+```
+
+Expected test count: **77** (previous 67 verified, five portable
+artifact tests and five HTTP API tests **not yet verified locally**).
+The default OpenAPI UI is at `http://127.0.0.1:8000/docs`.
+**Do not use public network binding or input actual guest records.**
+The API has no authentication and its scores are not validated
+original booking-time cancellation probabilities.
+
+See [the local API guide](docs/API_RESEARCH.md) for a complete
+synthetic PowerShell request, response fields and limitations.
+
 ## Research and engineering standards
 
 1. Separate historical observation time, available labels, and feature timing.
@@ -185,5 +219,6 @@ classifiers**, not validated booking-time predictions. The
 
 - [Dataset contract](docs/DATA_CONTRACT.md)
 - [Booking-time limitations](docs/BOOKING_TIME_CONTRACT.md)
+- [Local research API guide](docs/API_RESEARCH.md)
 - [Original retrospective cohort protocol](docs/BASELINE_PROTOCOL.md)
 - [Measured experiments, limitations and next protocol](docs/EXPERIMENT_RESULTS.md)
