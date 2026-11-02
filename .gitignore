@@ -13,3 +13,6 @@ models/
 *.pth
 *.pkl
 *.joblib
+
+# Generated experiment outputs; preserve locally but do not commit
+reports/
