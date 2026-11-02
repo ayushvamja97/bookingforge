@@ -11,7 +11,7 @@ An applied AI/ML and software-engineering portfolio project researching cancella
 **Phase 2 in progress:** Original NumPy kNN and a from-scratch NumPy neural network, compared on **all eligible train and validation rows**.
 
 - Real publicly available dataset: 119,390 records, 32 columns, arrivals July 2015–August 2017.
-- **34 automated tests passed locally** at commit `b0ccc4b` on 2026-11-02. The added MLP gradient and integration tests await verification on the Windows environment.
+- **38 automated tests passed locally** at commit `76854f9` on 2026-11-02. Newly added probability diagnostic tests await local verification.
 - Historical training cohort contains **63,334** bookings with outcomes known by 2016-08-31.
 - The **full retrospective validation creation cohort contains 19,339 bookings** with recorded eventual outcomes. These labels are used only for later scoring, never model fitting.
 - Final test creation cohort remains **sealed**. No deployment claims or simulated revenue claims.
@@ -37,7 +37,7 @@ The comparison includes:
 - Logistic regression with preprocessing fit **only** on historical training features.
 - **From-scratch NumPy kNN** using exact squared-Euclidean nearest neighbors, batches to limit peak memory, a fixed `k=15`, and progress reporting. No sampling of the dataset.
 
-**Verified full-cohort results:** constant prior AUC 0.5000, AP 0.3832, Brier 0.2370; logistic AUC 0.6776, AP 0.5155, Brier 0.2460; original kNN AUC 0.6295, AP 0.4724, Brier 0.3312. The new four-model comparison (adding the NumPy MLP) is not yet run locally. The saved earlier kNN report is `reports/full_knn_comparison.json`.
+**Verified full-cohort results:** constant prior AUC 0.5000, AP 0.3832, Brier 0.2370; logistic AUC 0.6776, AP 0.5155, Brier 0.2460; original kNN AUC 0.6295, AP 0.4724, Brier 0.3312. The new four-model comparison is also verified: original NumPy MLP ROC AUC **0.6715**, AP **0.5151**, but Brier **0.5950**, a serious probability-quality failure under investigation. The saved earlier kNN report is `reports/full_knn_comparison.json`.
 
 ## Reproduce
 
@@ -61,6 +61,8 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m bookingforge.train_baseline --csv data/raw/hotels.csv --output reports/baseline_validation_v2.json
 .\.venv\Scripts\python.exe -m bookingforge.compare_knn --csv data/raw/hotels.csv --output reports/full_four_model_comparison.json --k 15 --batch-size 64 --mlp-hidden 32 --mlp-epochs 30
 ```
+
+To inspect MLP probability behavior without repeating the expensive kNN pass, run `python -m bookingforge.probability_diagnostics --csv data/raw/hotels.csv` with `PYTHONPATH=src`. This uses the same fixed training configuration and does not inspect test outcomes.
 
 The exact kNN computation is significantly more expensive than logistic regression. It processes the full validation population in batches rather than reducing its size.
 
