@@ -11,7 +11,7 @@ An applied AI/ML and software-engineering portfolio project researching cancella
 **Phase 2 in progress:** Original NumPy kNN and a from-scratch NumPy neural network, compared on **all eligible train and validation rows**.
 
 - Real publicly available dataset: 119,390 records, 32 columns, arrivals July 2015–August 2017.
-- **42 automated tests passed locally** at commit `46066e3` on 2026-11-02. The new feature-drift tests await local verification.
+- **46 automated tests passed locally** at commit `2228b9f` on 2026-11-02. Four new prediction-sensitivity tests await local verification.
 - Historical training cohort contains **63,334** bookings with outcomes known by 2016-08-31.
 - The **full retrospective validation creation cohort contains 19,339 bookings** with recorded eventual outcomes. These labels are used only for later scoring, never model fitting.
 - Final test creation cohort remains **sealed**. No deployment claims or simulated revenue claims.
@@ -63,6 +63,8 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 ```
 
 **Verified probability diagnostics:** Logistic regression predicted an average cancellation probability of **0.554** in validation; the original NumPy MLP predicted **0.986** although actual validation prevalence was **0.383**. The MLP assigned >99% cancellation probability to **67.5%** of validation records. The cause remains under investigation. Run `python -m bookingforge.feature_drift --csv data/raw/hotels.csv` with `PYTHONPATH=src` to inspect label-blind feature shifts (not yet verified locally).
+
+**Verified drift audit:** arrival year differs by **+1.757 training standard deviations** between historical training and validation; other numeric shifts were much smaller and no new categorical values appeared. This is a hypothesis, not proof of the neural network's overconfidence. Run `python -m bookingforge.feature_sensitivity --csv data/raw/hotels.csv` with `PYTHONPATH=src` for a predeclared validation-label-blind input intervention.
 
 The exact kNN computation is significantly more expensive than logistic regression. It processes the full validation population in batches rather than reducing its size.
 
