@@ -42,3 +42,14 @@ The previous Python API milestone had 77 passing tests. `frontend/npm run test` 
 ## Statistical limitations
 
 The 0.7300 retrospective ROC AUC and 0.2032 retrospective Brier refer to distinct original NumPy MLP configurations on 14,517 arrivals from Oct–Dec 2016. These metrics are not independent prospective booking-time performance. The historical hotel source has no immutable booking-creation snapshots; older exploratory audits already inspected nominal 2017 test outcomes. Use only fabricated demo data and no real guest bookings.
+
+### Local full-stack smoke test
+
+With the Next.js dashboard and FastAPI both running, open another PowerShell window:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge\frontend"
+npm run smoke
+```
+
+This sends a single **synthetic** booking through the Next.js proxy and both loaded NumPy models. It requires the local saved artifacts and services, so it is not an automatic GitHub Actions step.
