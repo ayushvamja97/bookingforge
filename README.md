@@ -180,12 +180,20 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m uvicorn bookingforge.api:app --host 127.0.0.1 --port 8000
 ```
 
-Expected test count: **77** (previous 67 verified, five portable
-artifact tests and five HTTP API tests **not yet verified locally**).
+Expected test count: **77** (the previous 67 are verified; the five artifact and five API tests still need a complete local test-run log).
 The default OpenAPI UI is at `http://127.0.0.1:8000/docs`.
 **Do not use public network binding or input actual guest records.**
 The API has no authentication and its scores are not validated
 original booking-time cancellation probabilities.
+
+**Verified local HTTP milestone (2026-11-02):** The `/health` endpoint
+returned `ready` with both saved model variants loaded. A synthetic
+City Hotel request to `POST /v1/research/predict` returned **HTTP 200**
+and `research_cancellation_score=0.2177707187048443` using the
+`without_year` model. Both `research_only=true` and
+`calibrated_for_booking_time=false` were present. This confirms
+the local saved-model-to-HTTP request integration, not statistical
+calibration or a real-world risk estimate.
 
 See [the local API guide](docs/API_RESEARCH.md) for a complete
 synthetic PowerShell request, response fields and limitations.
