@@ -11,9 +11,8 @@ Any future inventory/revenue analysis must use explicitly synthetic assumptions.
 
 - Public historical dataset: **119,390 rows, 32 columns**, arrivals July
   2015 to August 2017. Individual raw booking rows are not stored in Git.
-- **58/58 automated tests passed** locally on **2026-11-02** at commit
-  `dd1ac51`. The next four tests for an alternate arrival-cohort protocol
-  require local verification.
+- **62/62 automated tests passed** locally on **2026-11-02** at commit
+  `2b2e853`, including the arrival-cohort benchmark's new tests.
 - Original algorithms: NumPy **exact kNN** and **one-hidden-layer MLP** with
   explicit analytic backpropagation, Adam and finite-difference gradient tests.
 - Comparison models: scikit-learn logistic regression and constant
@@ -49,7 +48,7 @@ models to make their scores look better.**
 
 Read [all verified experiments, negative results and limits](docs/EXPERIMENT_RESULTS.md).
 
-## Next: separate retrospective arrival-cohort algorithm benchmark
+## New result: separate retrospective arrival-cohort algorithm benchmark
 
 A new, **separately scoped task** avoids the specific future-arrival
 maturity artifact without pretending that original booking-time data exist:
@@ -63,12 +62,24 @@ maturity artifact without pretending that original booking-time data exist:
 - **Compare:** prior, logistic regression and original NumPy MLP, with
   and without raw arrival year. No row subsampling.
 
-This tests an **arrival-date-separated retrospective classification
-algorithm**, **not a valid model for predicting cancellation at original
-reservation creation**. It still has historical feature-timing
-uncertainty, limited sample coverage and already-used exploratory
-information. Do not compare metrics to the incompatible creation-time
-experiments as if they measured the same task.
+**Verified local results:** 58,792 training arrivals and 14,517
+retrospective validation arrivals, with no random sampling.
+
+| Model | ROC AUC ↑ | AP ↑ | Brier ↓ |
+|---|---:|---:|---:|
+| Training prior | 0.5000 | 0.3822 | 0.2368 |
+| Logistic with year | 0.7182 | 0.6154 | 0.2175 |
+| Logistic without year | 0.7172 | 0.6140 | 0.2064 |
+| Original NumPy MLP with year | 0.7207 | 0.6383 | **0.2032** |
+| Original NumPy MLP without year | **0.7300** | **0.6456** | 0.2072 |
+
+The neural network without year ranks outcomes best, but the neural
+network with year has the best probability Brier score. Neither is a
+confirmed winner without uncertainty estimates. Both beat the constant
+training-prior benchmark by Brier. These results do **not** validate
+prediction at original booking creation because historical predictor
+snapshots are unavailable; cohorts are defined by arrival and were
+created after exploratory investigation of prior validation results.
 
 ### Run on Windows / PowerShell
 
@@ -86,9 +97,12 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m bookingforge.arrival_benchmark --csv data/raw/hotels.csv --output reports/arrival_benchmark.json --mlp-epochs 30
 ```
 
-**New benchmark metrics are unknown until the local run completes.**
-The experiment writes aggregate metrics and counts only to
-`reports/arrival_benchmark.json`. Earlier reports are preserved.
+The benchmark writes aggregate metrics and counts to
+`reports/arrival_benchmark.json`. The first measured run is recorded
+in [the experiment ledger](docs/EXPERIMENT_RESULTS.md). Earlier reports
+are preserved. The next planned step is *descriptive* probability
+calibration and subpopulation/uncertainty analysis, with no hyperparameter
+or feature selection on the same validation set.
 
 ## Research and engineering standards
 
