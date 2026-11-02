@@ -24,7 +24,7 @@ import numpy as np
 
 from .arrival_benchmark import load_arrival_benchmark, selected_features
 from .mlp_numpy import NumpyMLPBinary
-from .train_baseline import make_frame, metrics_for
+from .train_baseline import make_frame
 
 
 def _aligned_binary(y_true, probabilities):
