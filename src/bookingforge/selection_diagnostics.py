@@ -123,7 +123,7 @@ def selection_diagnostics(csv_path: str | Path) -> dict:
             " / ".join(key): value for key, value in sorted(by_lead.items())
         },
         "other_counts": {
-            k: v for k, v in sorted(counts.items()) if isinstance(k, str)
+            k: v for k, v in sorted((k, v) for k, v in counts.items() if isinstance(k, str))
         },
         "test_outcomes_accessed": False,
         "warning": (
