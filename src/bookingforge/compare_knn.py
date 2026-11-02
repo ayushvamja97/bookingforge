@@ -1,4 +1,4 @@
-"""Full-cohort, reproducible comparison: prior vs logistic vs custom NumPy kNN.
+"""Full-cohort, reproducible comparison of prior, logistic, NumPy kNN and NumPy MLP.
 
 No training or validation subsampling. Training only uses outcomes known by
 2016-08-31; retrospective validation scores ALL eventual final outcomes in
@@ -17,12 +17,15 @@ import time
 from pathlib import Path
 
 from .knn import NumpyKNNBinary
+from .mlp_numpy import NumpyMLPBinary
 from .train_baseline import (
     CATEGORICAL, NUMERIC, FEATURES, load_matured_cohorts, make_frame, metrics_for,
 )
 
 
-def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64) -> dict:
+def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64,
+                        mlp_hidden: int = 32, mlp_epochs: int = 30,
+                        mlp_batch_size: int = 256, mlp_learning_rate: float = 0.001) -> dict:
     import numpy as np
     import sklearn
     from sklearn.compose import ColumnTransformer
@@ -76,12 +79,26 @@ def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64)
     knn_prob = knn.predict_proba_positive(x_valid, on_progress=report_progress)
     knn_seconds = time.perf_counter() - knn_start
 
+    print("Training from-scratch NumPy MLP using only training features and labels...", flush=True)
+    mlp = NumpyMLPBinary(
+        hidden_units=mlp_hidden, epochs=mlp_epochs, batch_size=mlp_batch_size,
+        learning_rate=mlp_learning_rate, weight_decay=0.0001, seed=42,
+    )
+    mlp_start = time.perf_counter()
+
+    def report_epoch(epoch: int, total: int, loss: float) -> None:
+        print(f"  MLP epoch {epoch}/{total}: training objective={loss:.6f}", flush=True)
+
+    mlp.fit(x_train, y_train, on_epoch=report_epoch)
+    mlp_prob = mlp.predict_proba_positive(x_valid)
+    mlp_seconds = time.perf_counter() - mlp_start
+
     path = Path(csv_path)
     with path.open("rb") as stream:
         sha = hashlib.file_digest(stream, "sha256").hexdigest()
 
     return {
-        "experiment": "bookingforge_exact_numpy_knn_full_cohort_v1",
+        "experiment": "bookingforge_original_knn_mlp_full_cohort_v2",
         "dataset_sha256": sha,
         "evaluation_status": "EXPLORATORY RETROSPECTIVE VALIDATION; NOT DEPLOYMENT-VALIDATED",
         "data_sampling": "NONE; all eligible train rows and all validation creation-cohort rows",
@@ -103,6 +120,21 @@ def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64)
             "validation_rows_scored": len(y_valid),
             "execution_seconds": round(knn_seconds, 3),
         },
+        "custom_numpy_mlp": {
+            "implementation": "one hidden ReLU layer, logistic output, binary cross entropy",
+            "optimizer": "mini-batch Adam from scratch with L2 penalty on weights",
+            "hidden_units": mlp_hidden,
+            "epochs": mlp_epochs,
+            "batch_size": mlp_batch_size,
+            "learning_rate": mlp_learning_rate,
+            "weight_decay": mlp.weight_decay,
+            "seed": mlp.seed,
+            "trained_rows_used": len(y_train),
+            "validation_rows_scored": len(y_valid),
+            "training_objective_by_epoch": mlp.training_loss_history_,
+            "fit_and_score_seconds": round(mlp_seconds, 3),
+            "validation_used_for_training_or_early_stopping": False,
+        },
         "library_versions": {
             "python": platform.python_version(),
             "numpy": np.__version__,
@@ -112,6 +144,7 @@ def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64)
             "prior_probability": metrics_for(y_valid, prior_prob),
             "logistic_regression": metrics_for(y_valid, logistic_prob),
             "custom_numpy_knn": metrics_for(y_valid, knn_prob),
+            "custom_numpy_mlp": metrics_for(y_valid, mlp_prob),
         },
         "counts": counts,
         "total_execution_seconds": round(time.perf_counter() - start, 3),
@@ -120,7 +153,7 @@ def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64)
             "Dataset is arrival-bounded and does not capture all created reservations.",
             "Training outcomes are selected to be known at the historical cutoff.",
             "Validation includes all eventual outcomes, which are used ONLY retrospectively for scoring.",
-            "k=15 is a fixed demonstration value; no hyperparameter tuning or threshold selection is claimed.",
+            "k=15 and the NumPy MLP configuration were fixed before examining new results; no validation-based tuning or early stopping.",
             "Exact kNN has O(train_rows * validation_rows * features) evaluation cost.",
             "No causal, business revenue or production performance claims.",
         ],
@@ -130,15 +163,23 @@ def run_full_comparison(csv_path: str | Path, k: int = 15, batch_size: int = 64)
 def main() -> None:
     parser = argparse.ArgumentParser(description="Exact full-data NumPy kNN vs logistic comparison")
     parser.add_argument("--csv", default="data/raw/hotels.csv")
-    parser.add_argument("--output", default="reports/full_knn_comparison.json")
+    parser.add_argument("--output", default="reports/full_four_model_comparison.json")
     parser.add_argument("--k", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--mlp-hidden", type=int, default=32)
+    parser.add_argument("--mlp-epochs", type=int, default=30)
+    parser.add_argument("--mlp-batch-size", type=int, default=256)
+    parser.add_argument("--mlp-learning-rate", type=float, default=0.001)
     args = parser.parse_args()
-    report = run_full_comparison(args.csv, k=args.k, batch_size=args.batch_size)
+    report = run_full_comparison(
+        args.csv, k=args.k, batch_size=args.batch_size,
+        mlp_hidden=args.mlp_hidden, mlp_epochs=args.mlp_epochs,
+        mlp_batch_size=args.mlp_batch_size, mlp_learning_rate=args.mlp_learning_rate,
+    )
     dest = Path(args.output)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print("\nFULL COHORT MODEL COMPARISON COMPLETE")
+    print("\nFOUR-MODEL FULL COHORT COMPARISON COMPLETE")
     for name, metrics in report["validation_metrics"].items():
         print(f"  {name}: ROC AUC={metrics['roc_auc']:.4f}; AP={metrics['average_precision']:.4f}; Brier={metrics['brier_score']:.4f}")
     print(f"Full comparison report: {dest}")
