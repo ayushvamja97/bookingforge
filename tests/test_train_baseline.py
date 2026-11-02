@@ -54,6 +54,27 @@ class BaselineDataTests(unittest.TestCase):
         self.assertEqual(counters["validation_outcome_unknown_at_cutoff"], 1)
         self.assertEqual(len(samples["train"]), 1)
 
+    def test_retro_validation_keeps_eventual_labels_without_training_leakage(self):
+        self.write([
+            self.row(is_canceled="0", reservation_status_date="2016-09-10"),
+            self.row(arrival_date_month="September", arrival_date_day_of_month="01",
+                     is_canceled="1", reservation_status_date="2017-02-05"),
+            self.row(arrival_date_month="September", arrival_date_day_of_month="02",
+                     is_canceled="0", reservation_status_date="2016-10-11"),
+        ])
+        samples, labels, counts = load_matured_cohorts(
+            self.path, validation_mode="all_eventual"
+        )
+        self.assertEqual(labels["train"], [])
+        self.assertEqual(labels["validation"], [1, 0])
+        self.assertEqual(counts["train_outcome_unknown_at_cutoff"], 1)
+        self.assertEqual(counts["validation_scored_using_eventual_outcome"], 1)
+
+    def test_retro_mode_is_explicit(self):
+        self.write([self.row()])
+        with self.assertRaisesRegex(ValueError, "validation_mode"):
+            load_matured_cohorts(self.path, validation_mode="unsafe")
+
     def test_final_test_labels_are_not_examined(self):
         self.write([
             self.row(arrival_date_year="2017", arrival_date_month="January",
