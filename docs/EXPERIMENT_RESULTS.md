@@ -497,6 +497,51 @@ are verified; exhaustive test-suite coverage is not yet
 confirmed by a fresh 77-test local log. No API latency
 benchmark has been measured.
 
+## Experiment M — full-stack research dashboard (source committed; build pending)
+
+The Next.js/React/TypeScript research frontend is implemented under
+`frontend/`. It connects to the existing locally verified FastAPI
+backend via **same-origin Next.js server proxy routes**:
+
+- `/api/research/status` checks whether both saved NumPy models are
+  loaded by FastAPI.
+- `/api/research/compare` validates a strict synthetic
+  historical booking allowlist, rejects unexpected/outcome fields,
+  and requests **both fixed original MLP variants** in parallel.
+- The browser displays the two raw scores alongside each other,
+  labels both as **uncalibrated retrospective research outputs**,
+  and shows a numerical difference without choosing a winner.
+- The interface also presents the previously verified 14,517-record
+  retrospective benchmark, model ranking versus Brier results,
+  data limitations and end-to-end technical architecture.
+- The form only accepts fabricated July 2015–December 2016 booking
+  inputs and never requests real guest identifiers or payment data.
+- No model fitting, threshold selection, neural architecture changes
+  or new evaluation labels are involved in the frontend.
+
+A fixed local contract-test suite exercises valid synthetic
+bookings, forbidden labels, calendar date boundaries, quantities,
+and strict model response parsing. **4/4 frontend contract tests
+passed** in the local Node.js 22 type-stripping test runner.
+Seven TypeScript source files were syntactically transpile-checked
+with **zero parse errors**. However, npm packages were unavailable
+to the tool's local environment, so **full `npm run typecheck`,
+`npm run build` and browser rendering are still UNVERIFIED** until
+the user's Node environment or GitHub CI executes them.
+
+The code also includes two-container localhost-only Docker Compose
+scaffolding with saved models mounted read-only, plus a GitHub
+Actions workflow for Python and frontend checks. These have been
+**committed but not yet independently run/verified**. Do not
+claim successful container deployment or passing Actions jobs
+without logs. The prior Python suite (77/77) and the live
+FastAPI POST were already verified separately.
+
+All of this is a **local portfolio demonstration**, not a
+live hotel prediction service. See the [full-stack guide](FRONTEND_DEMO.md)
+for PowerShell startup, Node tests, explicit synthetic-data-only
+requirements and the optional Compose configuration.
+
 ## Limitations and next scientific steps
 
 1. The arrival-bounded source is not a complete cohort of bookings made
