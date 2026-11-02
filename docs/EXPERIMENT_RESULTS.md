@@ -300,6 +300,54 @@ reliability bins and uncertainty estimates for fixed models. Avoid
 choosing features, hyperparameters or decision thresholds based on
 repeated inspection of this same validation set.
 
+## Experiment J — fixed-model reliability audit (pending local verification)
+
+The new `bookingforge.arrival_reliability` module refits the **unchanged**
+four retrospective arrival-based configurations from Experiment I:
+logistic regression and original NumPy MLP, each with/without arrival year.
+It uses the **same training and validation arrival windows**, the same
+train-only preprocessing and MLP settings (32 hidden units, 30 epochs,
+mini-batch 256, learning rate 0.001, L2 0.0001, seed 42), and the same
+historical training cutoff and row-selection protocol. It adds no new
+feature selection or model tuning.
+
+The diagnostic writes ONLY aggregate reports:
+- Ten equal-width **calibration bins** spanning [0,1] per model, with
+  booking count, mean predicted probability, observed event frequency,
+  and exploratory equal-width expected calibration error (ECE).
+- **Hotel and arrival-month** breakdowns with row count, true
+  cancellation/no-show rate, mean prediction, ROC AUC (or null if
+  undefined), average precision, Brier score, and extreme confidence.
+- **Paired row-bootstrap** percentile intervals (300 fixed-seed
+  resamples by default) for difference in Brier and ROC AUC of the two
+  fixed NumPy MLP configurations: WITHOUT minus WITH arrival year.
+  Brier difference less than zero favors no-year, whereas AUC
+  difference greater than zero favors no-year.
+- No individual booking data, probability vectors, or labels are saved;
+  final 2017 arrivals are excluded before inspecting outcome fields.
+
+**Critical interpretation limits:** The row-bootstrap intervals hold
+fitted models fixed and assume independently resampled validation rows.
+They do not reflect refitting uncertainty, shared booking relationships,
+time correlation, feature timing, selection effects, repeated exploratory
+comparisons, or independent validation. The calibration bins/ECE do
+not constitute a fitted calibrator, demonstrate prospective calibration,
+or justify probability corrections. **Do not select a winner based on
+post-hoc confidence intervals from the same already-examined cohort.**
+
+PowerShell to verify the new diagnostic:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
+.\.venv\Scripts\python.exe -m bookingforge.arrival_reliability --csv data/raw/hotels.csv --output reports/arrival_reliability.json --mlp-epochs 30 --bootstrap-replicates 300
+```
+
+Expected test count after adding five new tests: **67**, not yet verified.
+**No Experiment J findings have been measured or claimed yet.**
+
 ## Limitations and next scientific steps
 
 1. The arrival-bounded source is not a complete cohort of bookings made
