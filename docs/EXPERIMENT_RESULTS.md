@@ -5,6 +5,17 @@ results are for the historical Hotel Booking Demand dataset, whose original
 reservation-time feature snapshots and complete booking-creation cohorts
 are unavailable. All evaluation remains exploratory, not deployment grade.
 
+**Holdout integrity qualification:** Earlier aggregate-audit code
+(`bookingforge.cohort.audit_creation_cohorts`) reads final target and
+status fields for *all* creation cohorts, including the nominal
+2017/test cohort. Later training and benchmarking routines deliberately
+exclude those labels from model fitting and model evaluation, but
+this repository has **not maintained a perfectly blind final-test
+holdout from the outset**. Never describe its final-test outcomes as
+globally untouched or claim an independent final-test result. A
+new externally sourced time period or appropriately sequestered
+data would be required for truly blind confirmation.
+
 ## Experiment A — selected validation subset (superseded)
 
 - Training labels known by 2016-08-31: **63,334** records.
@@ -21,8 +32,8 @@ booking-cancellation performance or compared directly with Experiment B.
 
 The same historically known **63,334 training labels**, with **all 19,339**
 validation-cohort bookings scored retrospectively using their eventual outcome.
-All model transformations were fitted on training features only. Final test
-cohort outcomes remain sealed.
+All model transformations were fitted on training features only. The model
+runner did not access test labels (older aggregate audits did).
 
 | Model | ROC AUC ↑ | AP ↑ | Brier ↓ |
 |---|---:|---:|---:|
