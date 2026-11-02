@@ -39,7 +39,7 @@ class NumpyKNNBinary:
         self._train_squared_norms = np.einsum("ij,ij->i", self._train, self._train)
         return self
 
-    def predict_proba_positive(self, features):
+    def predict_proba_positive(self, features, on_progress=None):
         if self._train is None:
             raise ValueError("Call fit before predict_proba_positive")
         queries = np.asarray(features, dtype=np.float64)
@@ -60,6 +60,8 @@ class NumpyKNNBinary:
             np.maximum(dist2, 0.0, out=dist2)
             neighbors = np.argpartition(dist2, kth=self.k - 1, axis=1)[:, :self.k]
             results[start:start + len(batch)] = self._labels[neighbors].mean(axis=1)
+            if on_progress is not None and ((start // self.batch_size) % 25 == 0 or start + len(batch) == len(queries)):
+                on_progress(start + len(batch), len(queries))
         return results
 
     def predict(self, features):
