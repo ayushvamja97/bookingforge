@@ -1,0 +1,12 @@
+.git
+.github
+frontend
+models
+reports
+data
+.venv
+__pycache__
+*.pyc
+*.pkl
+*.pt
+*.pth
