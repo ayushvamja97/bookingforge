@@ -232,35 +232,60 @@ The source has no immutable original booking-time feature history and
 is arrival-bounded. Even a corrected retrospective model is not
 evidence of a prospectively deployable reservation-risk tool.
 
-## Experiment I — alternative arrival-cohort retrospective benchmark (pending)
+## Experiment I — arrival-separated retrospective benchmark (verified locally)
 
-To investigate whether algorithms can learn cancellation patterns
-without the **matured future-arrival structural artifact**, the new
-`bookingforge.arrival_benchmark` uses a deliberately different
-observation/evaluation design:
+**Recorded:** 2026-11-02; **62/62 tests passed** at source commit
+`2b2e853`. This benchmark is a **different, specifically retrospective
+algorithmic research task**, not a booking-creation-time prediction
+experiment. Do NOT directly compare its metrics with the earlier
+booking-creation cohorts as if they were the same statistical task.
 
-- **Fit cohort:** arrivals from **2015-07-01 through 2016-08-31**;
-  include only final statuses recorded **by 2016-09-30**.
-- **Gap:** September 2016 arrivals excluded.
-- **Retrospective scoring cohort:** all bookings arriving
-  **2016-10-01 through 2016-12-31**, using eventual final outcomes
-  only for scoring (never model fitting).
-- **Sealed:** arrivals in 2017 and beyond are skipped *before*
-  reading outcome dates and targets.
-- Compare prior probability, original fixed logistic regression and
-  original NumPy MLP, with and without numeric arrival year.
-  Both feature configurations use all eligible rows; train-only
-  imputation/scaling/encoding, 32 hidden units, 30 epochs, seed 42.
-- Report class prevalence, row counts, missing/late label counts,
-  ROC AUC, average precision, Brier, log loss, and mean confidence.
-- **This is NOT booking-creation-time prediction.** It is an explicitly
-  retrospective, *arrival-date-separated* algorithmic comparison.
-  Historical predictor snapshots remain unavailable, training has a
-  remaining small label-availability filter, and exploratory choices
-  have already been influenced by prior validation results. Do not
-  advertise the results as independently confirmed or production-ready.
+- Training: **58,792** records arriving from 2015-07-01 to 2016-08-31,
+  all final outcomes known by **2016-09-30**. Training outcome prevalence:
+  **35.6%**.
+- Excluded transition: all September 2016 arrivals.
+- Validation: **14,517** arrivals from 2016-10-01 to 2016-12-31,
+  retrospectively using eventual final outcomes only to score, never fit.
+  Validation outcome prevalence: **38.2%**.
+- **393** validation final outcomes were recorded after 2016-12-31:
+  retrospectively scored, not assumed known during that period.
+- **46,081** arrivals outside either period excluded by design.
+  2017 arrivals were skipped before the benchmark reader accesses
+  outcomes (legacy aggregate audit previously examined nominal 2017
+  outcomes, so this is not a globally blind holdout).
 
-Reproduce in PowerShell:
+| Model | ROC AUC ↑ | Average precision ↑ | Brier ↓ | Mean predicted P |
+|---|---:|---:|---:|---:|
+| Constant training prior | 0.5000 | 0.3822 | 0.2368 | 0.356 |
+| Logistic with raw arrival year | 0.7182 | 0.6154 | 0.2175 | 0.278 |
+| Logistic without raw arrival year | 0.7172 | 0.6140 | 0.2064 | 0.373 |
+| Original NumPy MLP with year | 0.7207 | 0.6383 | **0.2032** | 0.347 |
+| Original NumPy MLP without year | **0.7300** | **0.6456** | 0.2072 | 0.353 |
+
+All four models achieved better ROC AUC and Brier scores than the
+constant training-prior baseline on this retrospective October–December
+2016 cohort. The **MLP without year** had the best ranking metrics;
+the **MLP with year** had the best Brier score. These modest differences
+have not been given confidence intervals, so there is **no established
+statistically significant winner**.
+
+Both MLP variants ran the specified **30 epochs** on the user's local
+CPU; the with-year MLP objective fell from **0.580277 to 0.527097**,
+the no-year MLP objective from **0.581752 to 0.532010**.
+No row subsampling, no outer-test model fitting, no early stopping,
+and no additional hyperparameter search.
+
+**Limits:** this model sees columns that may represent their final
+post-booking values. It cannot be described as a deployed or reliable
+booking-time risk model. Validation's eventual outcomes are obtained
+retrospectively. The historical source is selected by arrival date, and
+this protocol was developed after previous results had been inspected.
+This is not an independent, prespecified prospective test.
+Uncertainty intervals, grouped subgroup evaluation, calibration
+curves, and a new independent external cohort are needed to justify
+stronger claims.
+
+Reproduce with:
 
 ```powershell
 cd "C:\Users\Ayush\bookingforge"
@@ -270,9 +295,10 @@ $env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
 .\.venv\Scripts\python.exe -m bookingforge.arrival_benchmark --csv data/raw/hotels.csv --output reports/arrival_benchmark.json --mlp-epochs 30
 ```
 
-Results of this experiment are NOT YET observed. Do not copy
-metrics from an earlier incompatible cohort as if they belonged
-to this benchmark.
+**Next experiment:** Add *descriptive only* hotel/month subgroups,
+reliability bins and uncertainty estimates for fixed models. Avoid
+choosing features, hyperparameters or decision thresholds based on
+repeated inspection of this same validation set.
 
 ## Limitations and next scientific steps
 
@@ -288,8 +314,7 @@ to this benchmark.
 5. Repeatedly tuning hyperparameters on the same validation cohort can
    overfit selection. Freeze the experiment design; when optimization
    becomes necessary, create an *inner* training-only time split.
-6. A later fixed-protocol final-test evaluation may be appropriate after
-   resolving or explicitly restricting the deployment claim; not before.
+6. Nominal 2017 test outcomes have already been inspected by legacy aggregate audits; independent confirmation requires a new, properly sequestered data period or source.
 7. Confidence intervals, lead-time/hotel subgroup errors, and probability
    calibration should be assessed in separate documented experiments.
 8. Forecasting, Poisson-binomial DP, Monte Carlo and optimization must
