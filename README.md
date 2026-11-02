@@ -1,96 +1,123 @@
 # BookingForge
 
-**Hotel Booking Intelligence & Optimization Research Engine**
+**Hotel Booking Intelligence — Applied Machine Learning and Software Engineering Research**
 
-An applied AI/ML and software-engineering portfolio project researching cancellation prediction, demand forecasting, and constrained decision algorithms. All future hotel inventory/cost decisions are strictly **simulations**, not operational advice.
+A reproducible exploration of historical hotel reservation outcomes, original NumPy
+algorithms, time-based evaluation, data audits and decision simulation.
+**This is not an operational hotel cancellation-risk or overbooking system.**
+Any future inventory/revenue analysis must use explicitly synthetic assumptions.
 
-## Status
+## Current research status
 
-**Phase 1:** Data acquisition, provenance, quality/temporal audits, historical-cutoff protocol, and first exploratory machine-learning baseline.
+- Public historical dataset: **119,390 rows, 32 columns**, arrivals July
+  2015 to August 2017. Individual raw booking rows are not stored in Git.
+- **58/58 automated tests passed** locally on **2026-11-02** at commit
+  `dd1ac51`. The next four tests for an alternate arrival-cohort protocol
+  require local verification.
+- Original algorithms: NumPy **exact kNN** and **one-hidden-layer MLP** with
+  explicit analytic backpropagation, Adam and finite-difference gradient tests.
+- Comparison models: scikit-learn logistic regression and constant
+  training-prior probability.
+- The **2017 outcome fields remain sealed** in the research benchmark.
+- All benchmarks are exploratory. Source dates are not immutable reservation
+  creation timestamps, nor are model features verified booking-time snapshots.
 
-**Phase 2 in progress:** Original NumPy kNN and a from-scratch NumPy neural network, compared on **all eligible train and validation rows**.
+## What experiments really showed
 
-- Real publicly available dataset: 119,390 records, 32 columns, arrivals July 2015–August 2017.
-- **54 automated tests passed locally** at commit `a697d78` on 2026-11-02. Four new inner-cohort diagnostic tests await verification.
-- Historical training cohort contains **63,334** bookings with outcomes known by 2016-08-31.
-- The **full retrospective validation creation cohort contains 19,339 bookings** with recorded eventual outcomes. These labels are used only for later scoring, never model fitting.
-- Final test creation cohort remains **sealed**. No deployment claims or simulated revenue claims.
+Initial, selected validation: logistic ROC AUC **0.8315** on **11,991**
+matured labels. This result is *superseded* as a general performance claim:
+outcome maturity selected fast-resolving reservations.
 
-## Earlier benchmark — superseded, not comparable to the new protocol
+Full **19,339-booking retrospective validation** with historical training:
+logistic AUC **0.6776**, Brier **0.2460**; custom NumPy kNN AUC **0.6295**,
+Brier **0.3312**; custom NumPy MLP AUC **0.6715**, Brier **0.5950**.
+A constant prior achieved Brier **0.2370**, better than the three models.
 
-The original outcome-mature-only validation run produced:
+**Cohort-structure investigation** on an earlier internal chronological split:
+training had **39,507** known outcomes, inner validation **6,860**.
+The constant prior Brier was **0.243547**; all four logistic/MLP
+with/without arrival-year configurations were worse (**0.5054–0.6016**).
 
-| Metric | Constant training prior | Logistic regression |
-|---|---:|---:|
-| ROC AUC | 0.5000 | 0.8315 |
-| Average precision | 0.4574 | 0.8381 |
-| Brier score (lower is better) | 0.2506 | 0.1852 |
+Why this is important: among bookings whose outcomes were known
+before March or August 2016, **every booking arriving in 2017
+was canceled or a no-show** (228 historical train, 107 inner
+validation). That is a **structural artifact of the label-availability
+cutoff**, not evidence that arrival year predicts cancellation at booking
+creation. Earlier year-sensitivity experiments also exposed severe
+model overconfidence. **We did not hide these failures or tune the
+models to make their scores look better.**
 
-This run used **63,334 training** and **only 11,991 selected validation records**. Retrospective diagnosis showed the omitted 7,348 validation bookings had different eventual cancellation rates. Therefore **0.8315 must not be presented as general population performance or compared directly with the newer validation protocol**. The selection audit found that only 62.00% of validation records had final outcomes by the validation cutoff.
+Read [all verified experiments, negative results and limits](docs/EXPERIMENT_RESULTS.md).
 
-## New protocol: full retrospective validation
+## Next: separate retrospective arrival-cohort algorithm benchmark
 
-We train only on outcomes available by 2016-08-31 and evaluate **all 19,339** later-created validation bookings using their eventual final outcomes. Historical training selection bias, arrival-window selection, and unavailable feature snapshots remain limitations. See [experiment methods and caveats](docs/BASELINE_PROTOCOL.md).
+A new, **separately scoped task** avoids the specific future-arrival
+maturity artifact without pretending that original booking-time data exist:
 
-The comparison includes:
-- Constant prior-probability predictor trained only on historical training labels.
-- Logistic regression with preprocessing fit **only** on historical training features.
-- **From-scratch NumPy kNN** using exact squared-Euclidean nearest neighbors, batches to limit peak memory, a fixed `k=15`, and progress reporting. No sampling of the dataset.
+- **Fit on:** arrivals July 2015–August 2016 whose eventual status was
+  known by September 30, 2016.
+- **Gap:** September 2016 arrivals.
+- **Score on:** October–December 2016 arrivals, using their final
+  outcomes *only retrospectively*.
+- **Exclude:** every 2017 arrival before inspecting its final status.
+- **Compare:** prior, logistic regression and original NumPy MLP, with
+  and without raw arrival year. No row subsampling.
 
-**Verified full-cohort results:** constant prior AUC 0.5000, AP 0.3832, Brier 0.2370; logistic AUC 0.6776, AP 0.5155, Brier 0.2460; original kNN AUC 0.6295, AP 0.4724, Brier 0.3312. The new four-model comparison is also verified: original NumPy MLP ROC AUC **0.6715**, AP **0.5151**, but Brier **0.5950**, a serious probability-quality failure under investigation. The saved earlier kNN report is `reports/full_knn_comparison.json`.
+This tests an **arrival-date-separated retrospective classification
+algorithm**, **not a valid model for predicting cancellation at original
+reservation creation**. It still has historical feature-timing
+uncertainty, limited sample coverage and already-used exploratory
+information. Do not compare metrics to the incompatible creation-time
+experiments as if they measured the same task.
 
-## Reproduce
+### Run on Windows / PowerShell
 
-Use Python 3.12 on Windows (tested dependency versions are pinned in `requirements-ml.txt`). The raw CSV is **not included** in this repository.
-
-Download the Hotel Booking Demand data copy from the [TidyTuesday hotel dataset](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-02-11/hotels.csv), place it at `data/raw/hotels.csv` and verify its SHA256 fingerprint:
+Python 3.12 and pinned dependencies in `requirements-ml.txt`.
+Place the public [TidyTuesday hotel bookings CSV](https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-02-11/hotels.csv)
+at `data/raw/hotels.csv`; expected SHA256:
 
 `7c2ae42a7353905ea136e5c2287f17c92c5435826598bfbb8491c6f0c7b1fc06`
 
-Run from the repository root using PowerShell:
-
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-ml.txt
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 $env:PYTHONPATH = (Join-Path (Get-Location) "src")
-.\.venv\Scripts\python.exe -m bookingforge.data_audit --csv data/raw/hotels.csv
-.\.venv\Scripts\python.exe -m bookingforge.temporal_audit --csv data/raw/hotels.csv
-.\.venv\Scripts\python.exe -m bookingforge.cohort --csv data/raw/hotels.csv
-.\.venv\Scripts\python.exe -m bookingforge.selection_diagnostics --csv data/raw/hotels.csv
-.\.venv\Scripts\python.exe -m bookingforge.train_baseline --csv data/raw/hotels.csv --output reports/baseline_validation_v2.json
-.\.venv\Scripts\python.exe -m bookingforge.compare_knn --csv data/raw/hotels.csv --output reports/full_four_model_comparison.json --k 15 --batch-size 64 --mlp-hidden 32 --mlp-epochs 30
+.\.venv\Scripts\python.exe -m bookingforge.arrival_benchmark --csv data/raw/hotels.csv --output reports/arrival_benchmark.json --mlp-epochs 30
 ```
 
-**Verified probability diagnostics:** Logistic regression predicted an average cancellation probability of **0.554** in validation; the original NumPy MLP predicted **0.986** although actual validation prevalence was **0.383**. The MLP assigned >99% cancellation probability to **67.5%** of validation records. The cause remains under investigation. Run `python -m bookingforge.feature_drift --csv data/raw/hotels.csv` with `PYTHONPATH=src` to inspect label-blind feature shifts (not yet verified locally).
+**New benchmark metrics are unknown until the local run completes.**
+The experiment writes aggregate metrics and counts only to
+`reports/arrival_benchmark.json`. Earlier reports are preserved.
 
-**Verified sensitivity audit:** replacing validation arrival year with the training median (2016) changed the original NumPy MLP's overall mean predicted cancellation probability from 98.6% to 68.4%; for the 10,504 bookings arriving in 2017, mean probability fell from 99.8% to 44.2%. This synthetic intervention is NOT a valid real-world feature edit or a new accuracy score. The next experiment uses a strictly inner chronological split, with and without the raw arrival year. Run `python -m bookingforge.inner_year_ablation --csv data/raw/hotels.csv --output reports/inner_year_ablation.json --mlp-epochs 30` after pulling, testing, and setting `PYTHONPATH=src`. The final test set remains sealed.
+## Research and engineering standards
 
-**Inner training-only ablation, verified:** Without arrival year, custom MLP Brier decreased **0.5820 → 0.5054**, but ROC AUC also decreased **0.6281 → 0.4413**. Both versions remain untrustworthy as probability estimators; removing year is not an approved fix. See [experiment results](docs/EXPERIMENT_RESULTS.md). Next, run `python -m bookingforge.inner_cohort_diagnostics --csv data/raw/hotels.csv --output reports/inner_cohort_composition.json` after setting `PYTHONPATH=src` to compare with the training-prior baseline and inspect inner cohort composition.
-
-The exact kNN computation is significantly more expensive than logistic regression. It processes the full validation population in batches rather than reducing its size.
-
-## Methodological boundaries
-
-1. Booking-creation dates are approximated by arrival date minus lead time; no immutable booking creation events exist in the dataset.
-2. Source data are bounded by **arrival** dates, resulting in incomplete and potentially biased **creation** cohorts.
-3. Historical training selects only outcome-mature labels, changing the training distribution.
-4. Feature values are not immutable original booking snapshots; even conservative predictors are provisional.
-5. Label, reservation status and final-status date are never model predictors.
-6. Validate the baseline and any future model on identical evaluation rows, report uncertainty, and reserve final test evaluation.
-7. Never commit raw individual booking records, invent model results, or claim real hotel deployment.
+1. Separate historical observation time, available labels, and feature timing.
+2. Never fit or select models from final-test outcomes.
+3. Never use `is_canceled`, `reservation_status` or
+   `reservation_status_date` as predictors.
+4. Train-only fitting for preprocessing; explicit reproducible
+   data windows, code commits, seeds, metrics and baselines.
+5. Record failure modes and selection bias rather than promising deployment.
+6. Do not upload real guest data, private hotel company information or
+   invented simulated economic results.
 
 ## Roadmap
 
-1. **Data quality and experimental protocol:** audits, missingness, label maturity, and reproducible baseline (completed for exploratory research; scientific limitations remain).
-2. **Custom algorithms:** original NumPy kNN (full-cohort benchmark verified); original NumPy MLP/backprop with gradient checks (awaiting full-cohort experiment).
-3. **Deep learning & demand:** temporal forecasting, seasonal baselines, then PyTorch sequence models where justified.
-4. **Optimization & simulations:** Poisson-binomial DP, exact/heuristic resource matching, Monte Carlo under explicit synthetic assumptions.
-5. **Application engineering:** FastAPI, Next.js UI, Docker, CI, systematic benchmarks and design documentation.
+1. Dataset contract, chronological audits and carefully qualified research
+   benchmarks (**implemented; known threats to validity**).
+2. Custom kNN and NumPy MLP with analytic gradients (**implemented,
+   validated on synthetic tests and measured on actual historical cohorts**).
+3. Reassess outcome/observation-time contract before adding PyTorch training
+   and GPU profiling.
+4. Research seasonal demand forecasting with explicit source limitations,
+   and separately model simulated stochastic hotel capacity decisions.
+5. Create FastAPI/API tests, CI, Docker, an explainable dashboard, and
+   reproducible experiment cards.
 
 ## Documentation
 
 - [Dataset contract](docs/DATA_CONTRACT.md)
-- [Booking-time contract](docs/BOOKING_TIME_CONTRACT.md)
-- [Updated full-cohort protocol](docs/BASELINE_PROTOCOL.md)
-- [Verified results and predeclared NumPy MLP experiment](docs/EXPERIMENT_RESULTS.md)
+- [Booking-time limitations](docs/BOOKING_TIME_CONTRACT.md)
+- [Original retrospective cohort protocol](docs/BASELINE_PROTOCOL.md)
+- [Measured experiments, limitations and next protocol](docs/EXPERIMENT_RESULTS.md)
