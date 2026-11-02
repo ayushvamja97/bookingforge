@@ -24,7 +24,7 @@ class ArrivalReliabilityTests(unittest.TestCase):
         self.assertEqual(report["bins"][-1]["count"], 2)
         self.assertEqual(report["total_records"], 4)
         self.assertGreaterEqual(report["expected_calibration_error_equal_width"], 0)
-        self.assertIsNone(report["bins"][1]["predicted_mean"])
+        self.assertIsNone(report["bins"][2]["predicted_mean"])
 
     def test_single_outcome_group_does_not_invent_auc(self):
         report = subgroup_metrics([0, 0], [0.1, 0.2])
