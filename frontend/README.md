@@ -31,3 +31,7 @@ The dashboard includes a synthetic booking form, comparison of both model varian
 To build for distribution: `npm run build`. A separate Docker Compose configuration from the project root can run both services with localhost-only published ports, with existing research weights mounted read-only.
 
 The frontend uses **Node.js 22+** and Next.js 16.4.3. Unit tests use the Node 22 type-stripping test runner to exercise the shared request/response guards.
+
+### Full-stack smoke test
+
+When **both** local servers are running, open a third PowerShell terminal in `frontend` and execute `npm run smoke`. It checks the Next.js health proxy and sends one fabricated booking through **both** saved NumPy models. It is deliberately excluded from offline unit tests/CI, since it needs the local model weights and running services.
