@@ -1,0 +1,8 @@
+[project]
+name = "bookingforge"
+version = "0.1.0"
+description = "Predictive intelligence and optimization research engine"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

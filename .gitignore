@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+.ipynb_checkpoints/
+data/raw/
+data/processed/
+models/
+*.pt
+*.pth
+*.pkl
+*.joblib
