@@ -101,6 +101,8 @@ docker compose up --build
 
 The backend mounts `./models/arrival_v1` read-only and the frontend reaches `http://api:8000` inside the Compose network. Published ports are host-local only. Stop with Ctrl+C, then `docker compose down`. **No public hosting, auth, HTTPS, rate limiting or real-guest privacy infrastructure has been implemented.**
 
+Once both servers are running, open another terminal in `frontend` and run `npm run smoke` to verify the **browser proxy → FastAPI → saved NumPy models** request path with a fabricated reservation. This needs local saved model files, so it isn't run in CI.
+
 ## Automated quality checks
 
 A GitHub Actions workflow in [`.github/workflows/checks.yml`](.github/workflows/checks.yml) runs synthetic Python ML/API tests and the frontend's Node tests, TypeScript checks and production build on push and pull requests. The frontend has a separate [setup guide](frontend/README.md) and dependency manifest.
