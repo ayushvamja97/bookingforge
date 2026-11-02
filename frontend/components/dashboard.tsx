@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   DEMO_BOOKING, MONTHS, ROOM_TYPES, RESEARCH_WARNING,
   formatScore, parseBooking, parseModelResponse,
@@ -70,6 +70,7 @@ export function Dashboard() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const requestNonce = useRef(0);
 
   async function refreshStatus() {
     try {
@@ -84,6 +85,8 @@ export function Dashboard() {
   useEffect(() => { void refreshStatus(); }, []);
 
   function update<K extends keyof ResearchBooking>(key: K, value: ResearchBooking[K]) {
+    requestNonce.current += 1; // Ignore an in-flight response for earlier inputs.
+    setIsSubmitting(false);
     setBooking((previous) => ({ ...previous, [key]: value }));
     setResult(null);
     setError("");
@@ -91,6 +94,8 @@ export function Dashboard() {
   }
 
   function reset() {
+    requestNonce.current += 1;
+    setIsSubmitting(false);
     setBooking({ ...DEMO_BOOKING });
     setResult(null);
     setError("");
@@ -105,6 +110,7 @@ export function Dashboard() {
       setResult(null);
       return;
     }
+    const nonce = ++requestNonce.current;
     setIsSubmitting(true);
     setError("");
     setResult(null);
@@ -120,13 +126,15 @@ export function Dashboard() {
       const a = parseModelResponse(raw?.models?.without_year, "without_year");
       const b = parseModelResponse(raw?.models?.with_year, "with_year");
       if (!a || !b) throw new Error("The model response was incomplete.");
+      if (nonce !== requestNonce.current) return;
       setResult({ without_year: a, with_year: b });
       setStatus("online");
     } catch (cause) {
+      if (nonce !== requestNonce.current) return;
       setError(cause instanceof Error ? cause.message : "Could not retrieve model results.");
       await refreshStatus();
     } finally {
-      setIsSubmitting(false);
+      if (nonce === requestNonce.current) setIsSubmitting(false);
     }
   }
 
