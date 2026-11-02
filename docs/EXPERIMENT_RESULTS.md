@@ -1,4 +1,4 @@
-# BookingForge: validated experiments and next neural baseline
+# BookingForge: verified full-cohort experiments and diagnostic follow-up
 
 This document separates **observed results** from **unrun experiments**. All
 results are for the historical Hotel Booking Demand dataset, whose original
@@ -40,7 +40,7 @@ logistic regression. The 0.8315 vs 0.6776 ROC AUC difference is driven by a
 change in evaluated population, so it is not a controlled model improvement
 or deterioration claim.
 
-## Experiment C — original NumPy neural net (to be run)
+## Experiment C — original NumPy neural net (verified on local device)
 
 The model in `src/bookingforge/mlp_numpy.py` uses a single ReLU hidden
 layer, sigmoid output, binary cross-entropy, exact analytic backpropagation,
@@ -54,11 +54,31 @@ Predeclared configuration:
 - No validation-driven early stopping, parameter search or threshold tuning
 - No random subsampling of training or validation cohorts
 
-The `compare_knn` runner now trains **all four** algorithms using the
-same feature matrix and reports ROC AUC, average precision, Brier, log loss,
-accuracy and F1. It saves the MLP training objective by epoch. NumPy MLP
-backpropagation was independently checked against finite-difference
-gradients on synthetic inputs. The full-cohort results are **not yet known**.
+The `compare_knn` runner trained **all four** algorithms using the same
+feature matrix. Verified local run on **2026-11-02**: **38/38 tests passed**;
+63,334 training bookings and 19,339 validation bookings processed. The MLP's
+training objective fell from **0.563358 (epoch 1)** to **0.487512 (epoch 30)**.
+NumPy backpropagation also passed finite-difference gradient tests.
+
+| Model | ROC AUC ↑ | AP ↑ | Brier ↓ |
+|---|---:|---:|---:|
+| Training prior | 0.5000 | 0.3832 | **0.2370** |
+| Logistic regression | **0.6776** | **0.5155** | 0.2460 |
+| Original NumPy kNN (k=15) | 0.6295 | 0.4724 | 0.3312 |
+| Original NumPy MLP (32 hidden units, 30 epochs) | 0.6715 | 0.5151 | **0.5950** |
+
+The MLP's Brier score is concerning: it is *much worse* than the constant prior,
+although ROC AUC and AP suggest some ranking ability. Falling training loss
+cannot establish out-of-time probability calibration. We must investigate
+predicted-probability distributions, saturation, and subgroup behavior rather
+than assume more training or larger architecture will fix the issue.
+
+**Diagnostic next step (does not tune models):** Run
+`python -m bookingforge.probability_diagnostics --csv data/raw/hotels.csv`
+from the repo root with `PYTHONPATH=src`. The diagnostic re-fits the same
+logistic/MLP configurations on the same train cohort and reports aggregate
+train/validation probability summaries and per-hotel validation breakdowns.
+It neither scores test labels nor chooses new hyperparameters.
 
 PowerShell from the repository root:
 
