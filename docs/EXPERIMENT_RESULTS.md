@@ -300,53 +300,71 @@ reliability bins and uncertainty estimates for fixed models. Avoid
 choosing features, hyperparameters or decision thresholds based on
 repeated inspection of this same validation set.
 
-## Experiment J — fixed-model reliability audit (pending local verification)
+## Experiment J — fixed-model reliability and uncertainty diagnostics (verified locally)
 
-The new `bookingforge.arrival_reliability` module refits the **unchanged**
-four retrospective arrival-based configurations from Experiment I:
-logistic regression and original NumPy MLP, each with/without arrival year.
-It uses the **same training and validation arrival windows**, the same
-train-only preprocessing and MLP settings (32 hidden units, 30 epochs,
-mini-batch 256, learning rate 0.001, L2 0.0001, seed 42), and the same
-historical training cutoff and row-selection protocol. It adds no new
-feature selection or model tuning.
+**Local execution:** 2026-11-02, **67/67 automated tests passed**.
+Re-ran unchanged logistic-regression and original NumPy-MLP fits,
+with and without the raw arrival year, on **58,792 training records**;
+scored the same **14,517 retrospective October–December 2016 arrivals**.
+All MLP runs completed 30 epochs and exactly reproduced the original
+training-objective progression.
 
-The diagnostic writes ONLY aggregate reports:
-- Ten equal-width **calibration bins** spanning [0,1] per model, with
-  booking count, mean predicted probability, observed event frequency,
-  and exploratory equal-width expected calibration error (ECE).
-- **Hotel and arrival-month** breakdowns with row count, true
-  cancellation/no-show rate, mean prediction, ROC AUC (or null if
-  undefined), average precision, Brier score, and extreme confidence.
-- **Paired row-bootstrap** percentile intervals (300 fixed-seed
-  resamples by default) for difference in Brier and ROC AUC of the two
-  fixed NumPy MLP configurations: WITHOUT minus WITH arrival year.
-  Brier difference less than zero favors no-year, whereas AUC
-  difference greater than zero favors no-year.
-- No individual booking data, probability vectors, or labels are saved;
-  final 2017 arrivals are excluded before inspecting outcome fields.
+| Model | ROC AUC ↑ | Brier ↓ | ECE (10 fixed bins) ↓ |
+|---|---:|---:|---:|
+| Training prior | 0.5000 | 0.236820 | **0.026529** |
+| Logistic with year | 0.718235 | 0.217525 | 0.120609 |
+| Logistic without year | 0.717186 | 0.206408 | 0.056390 |
+| Original MLP with year | 0.720688 | **0.203197** | 0.051002 |
+| Original MLP without year | **0.730030** | 0.207161 | 0.090582 |
 
-**Critical interpretation limits:** The row-bootstrap intervals hold
-fitted models fixed and assume independently resampled validation rows.
-They do not reflect refitting uncertainty, shared booking relationships,
-time correlation, feature timing, selection effects, repeated exploratory
-comparisons, or independent validation. The calibration bins/ECE do
-not constitute a fitted calibrator, demonstrate prospective calibration,
-or justify probability corrections. **Do not select a winner based on
-post-hoc confidence intervals from the same already-examined cohort.**
+The constant predictor is closest to average prevalence in these fixed
+bins, but has no ranking ability; **ECE alone is not a sufficient
+model-quality criterion**. The with-year MLP has the lowest Brier score;
+the no-year MLP ranks best by AUC. The MLPs' average validation
+probabilities and high-confidence rates are recorded by Experiment I.
 
-PowerShell to verify the new diagnostic:
+### Retrospective subgroup heterogeneity
 
-```powershell
-cd "C:\Users\Ayush\bookingforge"
-git pull --ff-only origin main
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
-.\.venv\Scripts\python.exe -m bookingforge.arrival_reliability --csv data/raw/hotels.csv --output reports/arrival_reliability.json --mlp-epochs 30 --bootstrap-replicates 300
-```
+| Group | Records | MLP with year: Brier / AUC | MLP without year: Brier / AUC |
+|---|---:|---|---|
+| City Hotel | 9,819 | 0.218498 / 0.712210 | 0.222339 / 0.716399 |
+| Resort Hotel | 4,698 | 0.171216 / 0.702828 | 0.175440 / 0.704804 |
+| October | 6,203 | 0.220952 / 0.691429 | 0.232385 / 0.686699 |
+| November | 4,454 | 0.182547 / 0.754362 | 0.174502 / 0.785073 |
+| December | 3,860 | 0.198492 / 0.706424 | 0.204312 / 0.726841 |
 
-Expected test count after adding five new tests: **67**, not yet verified.
-**No Experiment J findings have been measured or claimed yet.**
+October has weaker ranking performance than November for both
+fixed MLPs; hotel-level Brier differs materially. These are
+descriptive differences across non-identical populations, not
+controlled explanations of difficulty or proof of seasonal drift.
+
+### Paired row-resampling, fixed models
+
+**Difference is WITHOUT-year MLP minus WITH-year MLP**, using
+300 reproducible paired bootstrap replicates (seed 2026).
+
+| Quantity | Observed difference | Descriptive 95% percentile interval |
+|---|---:|---|
+| ROC AUC | +0.009342 | [+0.003742, +0.015165] |
+| Brier (lower is better) | +0.003965 | [+0.002091, +0.005907] |
+
+A positive AUC difference favors the no-year model; a positive
+Brier difference favors the with-year model. The row-bootstrap
+assumes independently sampled records and holds the fitted models
+fixed. It omits model-refit variance, time-series and hotel/guest
+clustering, historical cohort selection, and repeated exploratory
+comparisons. **Do not treat intervals excluding zero as definitive
+statistical significance or proof of generalization.** Neither
+configuration is selected or tuned by this report.
+
+No calibrator was fitted, no classification threshold optimized,
+no raw individual rows exported, and no 2017 arrival outcomes
+read by the new diagnostic. Legacy aggregate reports did
+previously inspect nominal test outcomes, which remain
+ineligible for claims of independent external confirmation.
+
+See locally generated aggregate JSON:
+`reports/arrival_reliability.json`.
 
 ## Limitations and next scientific steps
 
