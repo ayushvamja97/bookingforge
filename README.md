@@ -18,7 +18,7 @@ Any future inventory/revenue analysis must use explicitly synthetic assumptions.
   explicit analytic backpropagation, Adam and finite-difference gradient tests.
 - Comparison models: scikit-learn logistic regression and constant
   training-prior probability.
-- The **2017 outcome fields remain sealed** in the research benchmark.
+- New experiment pipelines exclude 2017 outcome fields from fitting and scoring. **Important qualification:** earlier repository audit code did read 2017 cohort outcomes in aggregate, so 2017 is **not a completely untouched blind holdout**. No independent final-test performance claim is currently justified.
 - All benchmarks are exploratory. Source dates are not immutable reservation
   creation timestamps, nor are model features verified booking-time snapshots.
 
@@ -93,7 +93,7 @@ The experiment writes aggregate metrics and counts only to
 ## Research and engineering standards
 
 1. Separate historical observation time, available labels, and feature timing.
-2. Never fit or select models from final-test outcomes.
+2. Do not fit models using 2017 outcomes; acknowledge that legacy aggregate audits already inspected them, precluding a genuinely blind final-test claim.
 3. Never use `is_canceled`, `reservation_status` or
    `reservation_status_date` as predictors.
 4. Train-only fitting for preprocessing; explicit reproducible
