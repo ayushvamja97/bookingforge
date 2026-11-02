@@ -1,5 +1,6 @@
-# Requirements for preliminary scikit-learn baseline training.
-# Python 3.11+ (tested target: Python 3.12 on Windows).
-numpy>=1.26,<3
-pandas>=2.2,<3
-scikit-learn>=1.5,<2
+# Exact direct dependencies for the verified Windows / Python 3.12 environment.
+# Record complete environment with: .\.venv\Scripts\python.exe -m pip freeze
+numpy==2.5.4
+pandas==2.3.3
+scipy==1.18.1
+scikit-learn==1.9.1
