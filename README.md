@@ -11,8 +11,8 @@ Any future inventory/revenue analysis must use explicitly synthetic assumptions.
 
 - Public historical dataset: **119,390 rows, 32 columns**, arrivals July
   2015 to August 2017. Individual raw booking rows are not stored in Git.
-- **62/62 automated tests passed** locally on **2026-11-02** at commit
-  `2b2e853`; five new reliability tests are committed but not yet verified on Windows.
+- **67/67 automated tests passed** locally on **2026-11-02** for the fixed-model
+  reliability audit at commit `d217ddd`; five new portable artifact tests await Windows verification.
 - Original algorithms: NumPy **exact kNN** and **one-hidden-layer MLP** with
   explicit analytic backpropagation, Adam and finite-difference gradient tests.
 - Comparison models: scikit-learn logistic regression and constant
@@ -74,8 +74,9 @@ retrospective validation arrivals, with no random sampling.
 | Original NumPy MLP without year | **0.7300** | **0.6456** | 0.2072 |
 
 The neural network without year ranks outcomes best, but the neural
-network with year has the best probability Brier score. Neither is a
-confirmed winner without uncertainty estimates. Both beat the constant
+network with year has the best probability Brier score. Exploratory paired row-bootstrap intervals
+favor the no-year MLP for ROC AUC and the with-year MLP for Brier,
+but neither has independent confirmation. Both beat the constant
 training-prior benchmark by Brier. These results do **not** validate
 prediction at original booking creation because historical predictor
 snapshots are unavailable; cohorts are defined by arrival and were
@@ -97,34 +98,63 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m bookingforge.arrival_benchmark --csv data/raw/hotels.csv --output reports/arrival_benchmark.json --mlp-epochs 30
 ```
 
-The benchmark writes aggregate metrics and counts to
-`reports/arrival_benchmark.json`. The first measured run is recorded
-in [the experiment ledger](docs/EXPERIMENT_RESULTS.md). Earlier reports
-are preserved. The next planned step is *descriptive* probability
-calibration and subpopulation/uncertainty analysis, with no hyperparameter
-or feature selection on the same validation set.
+The first measured run is recorded in the
+[experiment ledger](docs/EXPERIMENT_RESULTS.md). Prior reports
+remain available locally.
 
-## Next verification: reliability and subgroups
+## Verified reliability analysis
 
-A separate **fixed-model reliability audit** is now implemented in
-`bookingforge.arrival_reliability`. It repeats the same fit protocol
-for the two logistic and two original NumPy neural configurations,
-then reports **ten calibration bins**, hotel and arrival-month
-performance, and **paired row-bootstrap** uncertainty in the
-with-year vs no-year MLP differences. It does **not** tune models,
-fit calibrators, alter thresholds or score 2017 arrival outcomes.
+**67/67 tests passed**. The unchanged algorithms were refitted and
+their scores reproduced on the same 14,517 validation records.
+The probability-calibration ECE of the MLP with year was **0.0510**,
+versus **0.0906** without year. The constant prior achieved a smaller
+ECE (**0.0265**) but has no ranking ability; ECE alone cannot choose
+a useful model.
 
-Run after `git pull` and passing all expected **67 tests**:
+Hotel and month subgroups demonstrated heterogeneous performance.
+For example the MLP with year had October AUC **0.6914** versus
+November **0.7544**. The paired row-bootstrap (300 resamples)
+found an AUC difference **+0.009342** for no-year minus with-year
+and a Brier difference **+0.003965** (positive Brier is worse).
+These intervals are exploratory, condition on fixed models,
+ignore group/time dependence, and cannot support an independent
+significance or generalization claim.
+
+A detailed JSON report is in
+`reports/arrival_reliability.json` on the local machine.
+
+## Next verification: portable NumPy neural-network artifacts
+
+`bookingforge.model_artifact` now trains the **same original NumPy
+MLP with and without year**, exporting each model separately:
+
+- `models/arrival_v1/arrival_mlp_with_year.npz`
+- `models/arrival_v1/arrival_mlp_with_year.json`
+- `models/arrival_v1/arrival_mlp_without_year.npz`
+- `models/arrival_v1/arrival_mlp_without_year.json`
+
+The NumPy archives store only numerical weights; JSON stores train-fitted
+scaling, imputation, categorical encodings, and data/protocol metadata.
+No pickle is used to load model weights. The loader verifies SHA256,
+tensor shapes and feature schema before predicting, including unseen
+categories. The exporter compares original versus reloaded predictions
+over all historical validation **features**, with tolerance at most
+`1e-12`. It does not fit or select models using validation outcomes.
+
+Run after pulling and passing the expected **72 tests**:
 
 ```powershell
-$env:PYTHONPATH = (Join-Path (Get-Location) "src")
-.\.venv\Scripts\python.exe -m bookingforge.arrival_reliability --csv data/raw/hotels.csv --output reports/arrival_reliability.json --mlp-epochs 30 --bootstrap-replicates 300
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
+.\.venv\Scripts\python.exe -m bookingforge.model_artifact --csv data/raw/hotels.csv --output-dir models/arrival_v1 --report reports/arrival_artifact_verification.json --variant both --epochs 30
 ```
 
-Results are **not yet measured**. The bootstrap resamples individual
-validation rows while holding trained models fixed; it cannot establish
-independent significance or account for clustered bookings and time
-dependence. See [the detailed protocol](docs/EXPERIMENT_RESULTS.md).
+No full-dataset artifact-verification result is known yet.
+Both model variations remain **research-only historical arrival
+classifiers**, not validated booking-time predictions. The
+`models/` and `reports/` directories are excluded from Git.
 
 ## Research and engineering standards
 
