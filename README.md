@@ -2,47 +2,52 @@
 
 **Hotel Booking Intelligence & Optimization Research Engine**
 
-An applied AI/ML + software engineering portfolio project exploring hotel booking cancellations, demand forecasting, and constrained decision algorithms. All capacity/cost decisions will be explicitly simulated, not used as real hotel operational policy.
+An applied AI/ML and software-engineering portfolio project researching cancellation prediction, demand forecasting, and constrained decision algorithms. All future hotel inventory/cost decisions are strictly **simulations**, not operational advice.
 
-## Current status
+## Status
 
-**Phase 1: Real dataset acquired, validated, and first provisional ML baseline trained locally.**
+**Phase 1:** Data acquisition, provenance, quality/temporal audits, historical-cutoff protocol, and first exploratory machine-learning baseline.
 
-- Hotel Booking Demand dataset (António, Almeida & Nunes, 2019); 119,390 records, 32 columns, July 2015–August 2017 arrivals.
-- 21 unit tests passed on Windows/Python 3.12 in the first ML run. More tests added since; verify them locally.
-- Data quality, time consistency, outcome maturity and booking-creation cohort audit modules available.
-- Prior-probability baseline and scikit-learn logistic regression trained on selected *outcome-mature* booking cohorts.
-- **Final test cohort has NOT been evaluated.** No deployment or revenue claims.
+**Phase 2 in progress:** Original NumPy k-nearest-neighbors implementation and comparison on **all eligible train and validation rows**.
 
-### First preliminary validation benchmark (local run, 2026-11-02)
+- Real publicly available dataset: 119,390 records, 32 columns, arrivals July 2015–August 2017.
+- 25 automated tests passed locally at commit `35b469d` on 2026-11-02. Additional tests and full-cohort experiments have been added since and await local verification.
+- Historical training cohort contains **63,334** bookings with outcomes known by 2016-08-31.
+- The **full retrospective validation creation cohort contains 19,339 bookings** with recorded eventual outcomes. These labels are used only for later scoring, never model fitting.
+- Final test creation cohort remains **sealed**. No deployment claims or simulated revenue claims.
 
-| Metric | Prior probability | Logistic regression |
+## Earlier benchmark — superseded, not comparable to the new protocol
+
+The original outcome-mature-only validation run produced:
+
+| Metric | Constant training prior | Logistic regression |
 |---|---:|---:|
 | ROC AUC | 0.5000 | 0.8315 |
 | Average precision | 0.4574 | 0.8381 |
-| Brier score (lower better) | 0.2506 | 0.1852 |
+| Brier score (lower is better) | 0.2506 | 0.1852 |
 
-Training: **63,334** records; validation: **11,991** records. This benchmark is **not an unbiased estimate** of real-world performance. Labels were filtered to those known by each cohort's historical cutoff; doing so disproportionately selects fast-resolving bookings. Additionally, historical feature snapshots are missing and data were selected by arrival date. Read [baseline methodological limitations](docs/BASELINE_PROTOCOL.md) before interpreting metrics.
+This run used **63,334 training** and **only 11,991 selected validation records**. Retrospective diagnosis showed the omitted 7,348 validation bookings had different eventual cancellation rates. Therefore **0.8315 must not be presented as general population performance or compared directly with the newer validation protocol**. The selection audit found that only 62.00% of validation records had final outcomes by the validation cutoff.
 
-## Research principles
+## New protocol: full retrospective validation
 
-1. Define prediction timing before selecting predictors.
-2. Never use `is_canceled`, `reservation_status`, or `reservation_status_date` as model predictors.
-3. Treat the conservative booking-time feature allowlist as **provisional**; no historical value snapshots exist.
-4. Audit label availability and right-truncation before asserting generalization.
-5. Keep raw booking rows and all employer/customer data out of Git.
-6. Clearly mark simulated hotel capacity, financial loss and alternative decisions as hypothetical.
-7. Report negative results, uncertainty and all evaluation limitations.
+We train only on outcomes available by 2016-08-31 and evaluate **all 19,339** later-created validation bookings using their eventual final outcomes. Historical training selection bias, arrival-window selection, and unavailable feature snapshots remain limitations. See [experiment methods and caveats](docs/BASELINE_PROTOCOL.md).
 
-## Reproduce the current baseline
+The comparison includes:
+- Constant prior-probability predictor trained only on historical training labels.
+- Logistic regression with preprocessing fit **only** on historical training features.
+- **From-scratch NumPy kNN** using exact squared-Euclidean nearest neighbors, batches to limit peak memory, a fixed `k=15`, and progress reporting. No sampling of the dataset.
 
-Python 3.11+ and the publicly available CSV are required. Raw dataset and model artifacts are not stored in this repo.
+**New full-cohort benchmark metrics have not yet been verified locally.** The comparator records them in `reports/full_knn_comparison.json` when executed.
 
-**Dataset location:** `data/raw/hotels.csv`, sourced from the publicly available [TidyTuesday hotel bookings copy](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-02-11/readme.md). Verify source terms before redistribution. Expected dataset SHA256 from local initial audit:
+## Reproduce
+
+Use Python 3.12 on Windows (tested dependency versions are pinned in `requirements-ml.txt`). The raw CSV is **not included** in this repository.
+
+Download the Hotel Booking Demand data copy from the [TidyTuesday hotel dataset](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-02-11/hotels.csv), place it at `data/raw/hotels.csv` and verify its SHA256 fingerprint:
 
 `7c2ae42a7353905ea136e5c2287f17c92c5435826598bfbb8491c6f0c7b1fc06`
 
-In PowerShell (repository root):
+Run from the repository root using PowerShell:
 
 ```powershell
 python -m venv .venv
@@ -53,21 +58,32 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m bookingforge.temporal_audit --csv data/raw/hotels.csv
 .\.venv\Scripts\python.exe -m bookingforge.cohort --csv data/raw/hotels.csv
 .\.venv\Scripts\python.exe -m bookingforge.selection_diagnostics --csv data/raw/hotels.csv
-.\.venv\Scripts\python.exe -m bookingforge.train_baseline --csv data/raw/hotels.csv
+.\.venv\Scripts\python.exe -m bookingforge.train_baseline --csv data/raw/hotels.csv --output reports/baseline_validation_v2.json
+.\.venv\Scripts\python.exe -m bookingforge.compare_knn --csv data/raw/hotels.csv --output reports/full_knn_comparison.json --k 15 --batch-size 64
 ```
 
-Report JSON files are saved under `reports/`. The test labels are not used by the current training implementation.
+The exact kNN computation is significantly more expensive than logistic regression. It processes the full validation population in batches rather than reducing its size.
 
-## Project roadmap
+## Methodological boundaries
 
-1. **Foundation and baseline:** dataset contract, audits, unit tests, conservative first ML benchmark (**in progress; diagnostic caveats remain**).
-2. **Custom algorithms and ML:** own kNN and NumPy MLP implementations, benchmark against scikit-learn, with leakage-aware evaluation.
-3. **Forecasting and deep learning:** seasonal baseline, PyTorch temporal or sequence models where data support them.
-4. **Decision algorithms:** Poisson-binomial dynamic programming, Monte Carlo simulations, heuristics and room assignment with synthetic constraints.
-5. **Application engineering:** FastAPI backend, dashboard, integration tests, CI, Docker and experiment documentation.
+1. Booking-creation dates are approximated by arrival date minus lead time; no immutable booking creation events exist in the dataset.
+2. Source data are bounded by **arrival** dates, resulting in incomplete and potentially biased **creation** cohorts.
+3. Historical training selects only outcome-mature labels, changing the training distribution.
+4. Feature values are not immutable original booking snapshots; even conservative predictors are provisional.
+5. Label, reservation status and final-status date are never model predictors.
+6. Validate the baseline and any future model on identical evaluation rows, report uncertainty, and reserve final test evaluation.
+7. Never commit raw individual booking records, invent model results, or claim real hotel deployment.
 
-### Documentation
+## Roadmap
+
+1. **Data quality and experimental protocol:** audits, missingness, label maturity, and reproducible baseline (completed for exploratory research; scientific limitations remain).
+2. **Custom algorithms:** NumPy kNN, custom NumPy MLP/backprop, comparisons and ablations (in progress).
+3. **Deep learning & demand:** temporal forecasting, seasonal baselines, then PyTorch sequence models where justified.
+4. **Optimization & simulations:** Poisson-binomial DP, exact/heuristic resource matching, Monte Carlo under explicit synthetic assumptions.
+5. **Application engineering:** FastAPI, Next.js UI, Docker, CI, systematic benchmarks and design documentation.
+
+## Documentation
 
 - [Dataset contract](docs/DATA_CONTRACT.md)
-- [Booking observation-time contract](docs/BOOKING_TIME_CONTRACT.md)
-- [Preliminary baseline protocol and limitations](docs/BASELINE_PROTOCOL.md)
+- [Booking-time contract](docs/BOOKING_TIME_CONTRACT.md)
+- [Updated full-cohort protocol](docs/BASELINE_PROTOCOL.md)
