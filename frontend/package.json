@@ -9,7 +9,8 @@
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "start:container": "node server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "smoke": "node tests/smoke.mjs"
   },
   "dependencies": {
     "next": "16.4.3",
