@@ -1,0 +1,6 @@
+# Extra local-only research API dependencies, compatible with Python 3.12.
+# Keep algorithm dependencies identical to the previously measured environment.
+-r requirements-ml.txt
+fastapi==0.162.0
+uvicorn==0.54.0
+httpx==0.28.1
