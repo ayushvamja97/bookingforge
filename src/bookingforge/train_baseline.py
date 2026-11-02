@@ -177,7 +177,8 @@ def run_experiment(csv_path: str | Path) -> dict:
     baseline_probs = dummy.predict_proba(np.zeros((len(y_valid), 1)))[:, list(dummy.classes_).index(1)]
 
     p = Path(csv_path)
-    sha = hashlib.file_digest(p.open("rb"), "sha256").hexdigest()  # read-only dataset fingerprint
+    with p.open("rb") as stream:
+        sha = hashlib.file_digest(stream, "sha256").hexdigest()  # read-only dataset fingerprint
 
     return {
         "experiment": "bookingforge_preliminary_matured_cohort_baseline_v1",
