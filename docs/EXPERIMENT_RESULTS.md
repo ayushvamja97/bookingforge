@@ -185,34 +185,83 @@ hypothesis was motivated by already-inspected outer validation. Therefore
 the outer validation cohort is **not independent for claims about year
 ablation**, despite not being used for fitting in this inner experiment.
 
-## Experiment H — inner-cohort baseline/composition audit (pending verification)
+## Experiment H — inner-cohort composition and constant baseline (verified locally)
 
-To interpret whether Brier 0.5054 is useful, run
-`bookingforge.inner_cohort_diagnostics`. It uses the SAME existing
-inner cohorts and NO model training to report:
+The local diagnostic passed **58/58 tests** and completed on
+**2026-11-02**. It used **39,507 historical training** and **6,860
+inner validation** bookings. The training outcome prevalence was
+**46.653%**, while validation prevalence was **38.688%**.
 
-- Inner training vs evaluation cancellation/no-show prevalence
-- Arrival-year counts and cancellation prevalence by arrival year
-- Hotel-level class prevalence
-- Constant training-prior ROC AUC, average precision and Brier score
-- Record counts omitted by outcome availability cutoff
+**Constant training-prior baseline on inner validation:**
+ROC AUC **0.5000**, average precision **0.38688**, Brier **0.243547**,
+log loss **0.680224**. This Brier result beats ALL four feature-ablation
+models above by a wide margin.
 
-It does not access outer validation/test labels and reports no raw rows.
-The experiment does not tune or replace models.
+| Arrival year | Historical training records | Canceled/no-show fraction | Inner validation records | Canceled/no-show fraction |
+|---|---:|---:|---:|---:|
+| 2015 | 21,996 | 37.016% | 0 | — |
+| 2016 | 17,283 | 58.213% | 6,753 | 37.717% |
+| 2017 | 228 | **100%** | 107 | **100%** |
 
-PowerShell:
+**Critical structural artifact:** Under a historical cutoff of
+2016-03-31 for train and 2016-08-31 for inner validation,
+a stay arriving in **2017 cannot yet have checked out**. If its
+final status is already known before those cutoffs, the booking can
+only belong to an early-terminating category (such as cancellation).
+Therefore filtering to status-mature outcomes creates a near-tautological
+relationship between future arrival year and outcome in those rows,
+rather than revealing a legitimate future risk factor.
+
+The problem is deeper than a single feature, trainable architecture,
+or insufficient epochs. No model with or without year achieved
+better Brier score than the constant prior. Retain these negative
+results rather than tuning them away.
+
+The source has no immutable original booking-time feature history and
+is arrival-bounded. Even a corrected retrospective model is not
+evidence of a prospectively deployable reservation-risk tool.
+
+## Experiment I — alternative arrival-cohort retrospective benchmark (pending)
+
+To investigate whether algorithms can learn cancellation patterns
+without the **matured future-arrival structural artifact**, the new
+`bookingforge.arrival_benchmark` uses a deliberately different
+observation/evaluation design:
+
+- **Fit cohort:** arrivals from **2015-07-01 through 2016-08-31**;
+  include only final statuses recorded **by 2016-09-30**.
+- **Gap:** September 2016 arrivals excluded.
+- **Retrospective scoring cohort:** all bookings arriving
+  **2016-10-01 through 2016-12-31**, using eventual final outcomes
+  only for scoring (never model fitting).
+- **Sealed:** arrivals in 2017 and beyond are skipped *before*
+  reading outcome dates and targets.
+- Compare prior probability, original fixed logistic regression and
+  original NumPy MLP, with and without numeric arrival year.
+  Both feature configurations use all eligible rows; train-only
+  imputation/scaling/encoding, 32 hidden units, 30 epochs, seed 42.
+- Report class prevalence, row counts, missing/late label counts,
+  ROC AUC, average precision, Brier, log loss, and mean confidence.
+- **This is NOT booking-creation-time prediction.** It is an explicitly
+  retrospective, *arrival-date-separated* algorithmic comparison.
+  Historical predictor snapshots remain unavailable, training has a
+  remaining small label-availability filter, and exploratory choices
+  have already been influenced by prior validation results. Do not
+  advertise the results as independently confirmed or production-ready.
+
+Reproduce in PowerShell:
 
 ```powershell
 cd "C:\Users\Ayush\bookingforge"
 git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 $env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
-.\.venv\Scripts\python.exe -m bookingforge.inner_cohort_diagnostics --csv data/raw/hotels.csv --output reports/inner_cohort_composition.json
+.\.venv\Scripts\python.exe -m bookingforge.arrival_benchmark --csv data/raw/hotels.csv --output reports/arrival_benchmark.json --mlp-epochs 30
 ```
 
-After diagnosing the population, any model revision should use a separately
-specified observation-time protocol and held-out prospective-like evaluation,
-not repeatedly refitting to already-seen validation data.
+Results of this experiment are NOT YET observed. Do not copy
+metrics from an earlier incompatible cohort as if they belonged
+to this benchmark.
 
 ## Limitations and next scientific steps
 
