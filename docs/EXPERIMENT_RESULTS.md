@@ -157,3 +157,53 @@ on repeated exploration of the same cohort.
    calibration should be assessed in separate documented experiments.
 8. Forecasting, Poisson-binomial DP, Monte Carlo and optimization must
    separately declare their own observation times and simulation assumptions.
+
+
+## Experiment E — input feature drift (verified locally)
+
+Local audit on **2026-11-02**: **46/46 automated tests passed**. The
+63,334-record historically eligible training cohort and the full 19,339-record
+retrospective validation cohort show:
+
+| Feature | Train mean | Validation mean | Shift in training SD units |
+|---|---:|---:|---:|
+| Arrival year | 2015.666072 | 2016.543151 | +1.757087 |
+| Lead time | 107.687987 | 93.562749 | -0.127611 |
+| Week nights | 2.462058 | 2.569781 | +0.057863 |
+| Weekend nights | 0.902548 | 0.930038 | +0.027724 |
+
+No new categories were seen for hotel, arrival month or reserved room type.
+The arrival-year shift is much larger than the other numeric shifts. A larger
+share of later arrival years may cause the neural model to extrapolate strongly,
+even when those years technically occur in the historical training support.
+This **does not establish** which feature caused extreme predictions.
+
+## Experiment F — predeclared prediction intervention (not yet run)
+
+The added `bookingforge.feature_sensitivity` module fits the *unchanged*
+logistic and original NumPy MLP configurations on the same training cohort.
+For validation it reports the original predicted probability distribution
+and a **label-blind synthetic intervention** that replaces only
+`arrival_date_year` with its *training median*. A `lead_time`-median
+intervention provides a second descriptive comparison.
+
+Neither intervention trains a new model, uses validation labels for
+optimization, changes the saved baseline, nor accesses final-test outcomes.
+They create **hypothetical input combinations** that can be unrealistic,
+so differences describe model sensitivity, **not causal effects** or a
+validated method of improving predictions.
+
+PowerShell:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
+.\.venv\Scripts\python.exe -m bookingforge.feature_sensitivity --csv data/raw/hotels.csv --output reports/feature_sensitivity.json
+```
+
+If sensitivity is substantial, the appropriate next algorithmic comparison
+should use an **inner training-only chronological evaluation** to justify
+any predictor design change (such as removing a calendar-year value). We
+should not repeatedly optimize on the same full validation cohort.
