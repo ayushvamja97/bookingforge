@@ -12,7 +12,7 @@ Any future inventory/revenue analysis must use explicitly synthetic assumptions.
 - Public historical dataset: **119,390 rows, 32 columns**, arrivals July
   2015 to August 2017. Individual raw booking rows are not stored in Git.
 - **62/62 automated tests passed** locally on **2026-11-02** at commit
-  `2b2e853`, including the arrival-cohort benchmark's new tests.
+  `2b2e853`; five new reliability tests are committed but not yet verified on Windows.
 - Original algorithms: NumPy **exact kNN** and **one-hidden-layer MLP** with
   explicit analytic backpropagation, Adam and finite-difference gradient tests.
 - Comparison models: scikit-learn logistic regression and constant
@@ -103,6 +103,28 @@ in [the experiment ledger](docs/EXPERIMENT_RESULTS.md). Earlier reports
 are preserved. The next planned step is *descriptive* probability
 calibration and subpopulation/uncertainty analysis, with no hyperparameter
 or feature selection on the same validation set.
+
+## Next verification: reliability and subgroups
+
+A separate **fixed-model reliability audit** is now implemented in
+`bookingforge.arrival_reliability`. It repeats the same fit protocol
+for the two logistic and two original NumPy neural configurations,
+then reports **ten calibration bins**, hotel and arrival-month
+performance, and **paired row-bootstrap** uncertainty in the
+with-year vs no-year MLP differences. It does **not** tune models,
+fit calibrators, alter thresholds or score 2017 arrival outcomes.
+
+Run after `git pull` and passing all expected **67 tests**:
+
+```powershell
+$env:PYTHONPATH = (Join-Path (Get-Location) "src")
+.\.venv\Scripts\python.exe -m bookingforge.arrival_reliability --csv data/raw/hotels.csv --output reports/arrival_reliability.json --mlp-epochs 30 --bootstrap-replicates 300
+```
+
+Results are **not yet measured**. The bootstrap resamples individual
+validation rows while holding trained models fixed; it cannot establish
+independent significance or account for clustered bookings and time
+dependence. See [the detailed protocol](docs/EXPERIMENT_RESULTS.md).
 
 ## Research and engineering standards
 
