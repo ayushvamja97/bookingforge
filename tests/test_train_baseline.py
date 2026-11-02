@@ -26,7 +26,7 @@ class BaselineDataTests(unittest.TestCase):
             "arrival_date_year": "2016", "arrival_date_month": "August",
             "arrival_date_day_of_month": "31", "reserved_room_type": "A",
             "stays_in_weekend_nights": "1",
-            "reservation_status_date": "2016-08-30", "is_canceled": "1",
+            "reservation_status_date": "2016-08-31", "is_canceled": "1",
         })
         sample.update(changes)
         return sample
