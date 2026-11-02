@@ -134,36 +134,6 @@ share of later arrival years may cause the neural model to extrapolate strongly,
 even when those years technically occur in the historical training support.
 This **does not establish** which feature caused extreme predictions.
 
-## Experiment F — predeclared prediction intervention (not yet run)
-
-The added `bookingforge.feature_sensitivity` module fits the *unchanged*
-logistic and original NumPy MLP configurations on the same training cohort.
-For validation it reports the original predicted probability distribution
-and a **label-blind synthetic intervention** that replaces only
-`arrival_date_year` with its *training median*. A `lead_time`-median
-intervention provides a second descriptive comparison.
-
-Neither intervention trains a new model, uses validation labels for
-optimization, changes the saved baseline, nor accesses final-test outcomes.
-They create **hypothetical input combinations** that can be unrealistic,
-so differences describe model sensitivity, **not causal effects** or a
-validated method of improving predictions.
-
-PowerShell:
-
-```powershell
-cd "C:\Users\Ayush\bookingforge"
-git pull --ff-only origin main
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
-.\.venv\Scripts\python.exe -m bookingforge.feature_sensitivity --csv data/raw/hotels.csv --output reports/feature_sensitivity.json
-```
-
-If sensitivity is substantial, the appropriate next algorithmic comparison
-should use an **inner training-only chronological evaluation** to justify
-any predictor design change (such as removing a calendar-year value). We
-should not repeatedly optimize on the same full validation cohort.
-
 ## Experiment F — prediction sensitivity (verified locally)
 
 Local result on **2026-11-02**: **50/50 tests passed**. Repeating the original
