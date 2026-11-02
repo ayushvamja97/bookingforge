@@ -104,7 +104,8 @@ def audit_input_drift(csv_path: str | Path) -> dict:
         "categorical_feature_shift": categorical,
         "cohort_counts": counts,
         "individual_records_exported": False,
-        "prediction_scores_or_labels_accessed_for_analysis": False,
+        "outcome_values_used_to_compute_drift": False,
+        "cohort_eligibility_required_outcome_dates_and_training_labels": True,
         "final_test_outcomes_accessed": False,
         "interpretation": (
             "Descriptive covariate shift between training and validation input "
