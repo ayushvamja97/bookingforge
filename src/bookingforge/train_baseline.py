@@ -1,8 +1,10 @@
-"""Preliminary cancellation baseline on outcome-mature booking-creation cohorts.
+"""Preliminary historical-cutoff training with retrospective validation.
 
-IMPORTANT: This is a selected-outcome feasibility benchmark, NOT an unbiased
-estimate of real-world booking cancellation risk. Labels unresolved at each
-cutoff are excluded, which induces outcome-dependent selection bias.
+Training uses ONLY outcomes known by the training cutoff. Validation uses
+all eventual final labels of the distinct later-created cohort, regardless
+of the validation cutoff; these labels are used for scoring, never fitting.
+This avoids outcome-maturity selection in validation, but training remains
+selected and the dataset has arrival-window selection and feature drift.
 The final test cohort is never scored or inspected for labels here.
 
 Run from repository root:
@@ -43,12 +45,16 @@ if set(FEATURES) != PROVISIONAL_BOOKING_FEATURES:
 validate_booking_features(FEATURES)
 
 
-def load_matured_cohorts(csv_path: str | Path):
-    """Return ONLY label-mature train/validation data, never final test labels.
+def load_matured_cohorts(csv_path: str | Path, validation_mode: str = "matured"):
+    """Return outcome-mature train plus selected validation; never touch test labels.
 
-    Importantly, this is not a population-unbiased sample: more slowly
-    resolved bookings are selectively missing, especially in validation.
+    validation_mode="matured" preserves the historical cutoff diagnostic.
+    validation_mode="all_eventual" retains every valid validation booking
+    with a recorded final outcome for retrospective scoring ONLY. No later
+    validation outcome is used for fitting any part of the pipeline.
     """
+    if validation_mode not in {"matured", "all_eventual"}:
+        raise ValueError("validation_mode must be matured or all_eventual")
     samples = {"train": [], "validation": []}
     labels = {"train": [], "validation": []}
     counters = Counter()
@@ -89,7 +95,9 @@ def load_matured_cohorts(csv_path: str | Path):
 
             if known_at > cutoff:
                 counters[f"{cohort}_outcome_unknown_at_cutoff"] += 1
-                continue
+                if cohort == "train" or validation_mode == "matured":
+                    continue
+                counters["validation_scored_using_eventual_outcome"] += 1
 
             # Guard impossible chronology; raise rather than silently train on it.
             if known_at < created:
@@ -99,7 +107,7 @@ def load_matured_cohorts(csv_path: str | Path):
             record = {feature: row.get(feature, "") for feature in FEATURES}
             samples[cohort].append(record)
             labels[cohort].append(label)
-            counters[f"{cohort}_matured"] += 1
+            counters[f"{cohort}_included"] += 1
 
     return samples, labels, dict(sorted(counters.items()))
 
@@ -144,7 +152,7 @@ def run_experiment(csv_path: str | Path) -> dict:
     from sklearn.preprocessing import OneHotEncoder, StandardScaler
     import numpy as np
 
-    samples, labels, counts = load_matured_cohorts(csv_path)
+    samples, labels, counts = load_matured_cohorts(csv_path, validation_mode="all_eventual")
     if not samples["train"] or not samples["validation"]:
         raise ValueError("No eligible train/validation rows after label maturity screening")
 
@@ -181,12 +189,13 @@ def run_experiment(csv_path: str | Path) -> dict:
         sha = hashlib.file_digest(stream, "sha256").hexdigest()  # read-only dataset fingerprint
 
     return {
-        "experiment": "bookingforge_preliminary_matured_cohort_baseline_v1",
+        "experiment": "bookingforge_retrospective_full_validation_baseline_v2",
         "dataset_file": p.name,
         "dataset_sha256": sha,
-        "evaluation_status": "PRELIMINARY / OUTCOME-MATURE SUBSET ONLY / NOT AN UNBIASED ESTIMATE",
+        "evaluation_status": "PRELIMINARY / TRAIN-CUTOFF LABELS + FULL RETROSPECTIVE VALIDATION / NOT DEPLOYMENT",
         "fit_information_cutoff": TRAIN_CUTOFF.isoformat(),
-        "validation_outcome_cutoff": VALID_CUTOFF.isoformat(),
+        "validation_creation_cohort_end": VALID_CUTOFF.isoformat(),
+        "validation_label_observation": "eventual final outcomes; not used for fitting",
         "features": FEATURES,
         "counts": counts,
         "training_rows": len(y_train),
@@ -201,7 +210,8 @@ def run_experiment(csv_path: str | Path) -> dict:
         "limits": [
             "Creation dates reconstructed from arrival date minus lead time.",
             "Original dataset is bounded by arrival date, not creation date.",
-            "Outcome maturity filtering is selection-biased, especially for validation.",
+            "Training labels are selected to be known by fit cutoff, so training remains biased.",
+            "Validation includes all eventual outcomes but is only retrospective.",
             "Features are assumed booking-time proxies; historical snapshots are unavailable.",
             "Threshold 0.5 is not optimized or calibrated for a business decision.",
             "Metrics reflect retrospective classification on resolved cases, not production performance.",
@@ -226,7 +236,7 @@ def main() -> None:
     for name, values in report["validation_only_metrics"].items():
         print(f"{name}: ROC AUC={values['roc_auc']:.4f}; Brier={values['brier_score']:.4f}; AP={values['average_precision']:.4f}")
     print(f"Report: {dest}")
-    print("WARNING: Selected outcomes only; model validation is subject to censoring/selection bias.")
+    print("WARNING: Retrospective validation uses all eventual labels; training selection bias and source limitations remain.")
     print("Final test set was NOT evaluated.")
 
 
