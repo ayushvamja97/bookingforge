@@ -20,14 +20,13 @@ has no immutable original booking-time feature snapshots.
 Run from the repository root using Windows PowerShell:
 
 ```powershell
-cd "C:\Users\Ayush\bookingforge"
+# From the repository root
 git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m pip install -r requirements-api.txt
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Expected test count: **77** (72 previous tests, not yet confirmed
-in user logs, plus 5 new HTTP API tests). The pinned optional
+The suite contains **77 tests**, including 5 HTTP API tests. The pinned optional
 dependencies for the API are FastAPI, Uvicorn and HTTPX. The test
 suite imports FastAPI, so install these extras **before** running
 all tests.
@@ -131,3 +130,4 @@ To stop the server, press **Ctrl+C**.
 
 See [the experiment ledger](EXPERIMENT_RESULTS.md) for measured AUC,
 average precision, Brier scores, calibration and robustness limits.
+

@@ -8,6 +8,12 @@ BookingForge is a complete **local research-demo architecture** combining two or
 
 > **Research-only warning:** The dataset does not contain verified immutable booking-creation feature snapshots. This project does **not** establish real-world cancellation-risk probabilities, prospective performance, or a production-ready revenue/overbooking decision system. Enter **synthetic data only**.
 
+## Screenshot
+
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+Local dashboard with synthetic booking inputs. Model status is offline until the training/export step is completed.
+
 ## What is implemented
 
 | Component | Engineering evidence |
@@ -18,9 +24,11 @@ BookingForge is a complete **local research-demo architecture** combining two or
 | Persistent model artifacts | Train-fitted preprocessing and original MLP weight arrays; JSON + NPZ, SHA-256 checks; verified **zero** save/reload prediction discrepancy |
 | FastAPI backend | Local, input-validated JSON research prediction routes; two original models loaded once at startup; no request-time fitting |
 | Next.js 16 / React 19 dashboard | Synthetic booking form, side-by-side model scores, historical research results, backend health indicator and architecture walkthrough |
-| Automation & local packaging | **77 Python tests passed** in the latest user-provided run; four frontend contract tests passed in a local Node 22 test runner; GitHub Actions workflow and localhost-only Docker Compose added |
+| Automation & local packaging | **77 Python tests**; four frontend contract tests passed in a local Node 22 test runner; GitHub Actions workflow and localhost-only Docker Compose added |
 
-**Verification status:** The Python test suite, saved-model round trips and a real localhost HTTP prediction are verified. The new **Next.js install/typecheck/production build**, GitHub Actions execution and Docker Compose startup still require execution in an npm-capable development environment; do not assume they have passed.
+[![BookingForge Checks](https://github.com/ayushvamja97/bookingforge/actions/workflows/checks.yml/badge.svg)](https://github.com/ayushvamja97/bookingforge/actions/workflows/checks.yml)
+
+Python tests and frontend tests, TypeScript checks, and production build passed in [Actions run 41499765559](https://github.com/ayushvamja97/bookingforge/actions/runs/41499765559). Docker Compose startup is a separate local check.
 
 ## Research findings (separate retrospective arrival-cohort study)
 
@@ -58,13 +66,25 @@ The frontend proxies from its own server, so the browser doesn't need CORS acces
 
 ## Run locally — Windows PowerShell
 
-**Prerequisites:** Python 3.12, Node.js 22+, npm. The existing saved model files must be present in `models/arrival_v1/` (they remain local and intentionally are not committed to Git).
+**Prerequisites:** Python 3.12, Node.js 22+, npm and Git. From a fresh clone, create the local models before starting the API. Training uses the public historical dataset and can take several minutes; it is not performed on web requests.
+
+```powershell
+git clone https://github.com/ayushvamja97/bookingforge.git
+cd bookingforge
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-api.txt
+New-Item -ItemType Directory -Force data/raw | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-02-11/hotels.csv -OutFile data/raw/hotels.csv
+$env:PYTHONPATH = (Join-Path (Get-Location) "src")
+.\.venv\Scripts\python.exe -m bookingforge.model_artifact --csv data/raw/hotels.csv --output-dir models/arrival_v1 --report reports/arrival_artifact_verification.json --variant both --epochs 30
+```
+
+The exporter creates both JSON preprocessors and NPZ weight files under `models/arrival_v1/` and checks save/reload predictions. The source CSV and generated artifacts stay local. See the expected dataset hash below.
 
 In **Terminal 1**, start the existing backend:
 
 ```powershell
-cd "C:\Users\Ayush\bookingforge"
-git pull --ff-only origin main
+# From the repository root
 $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 .\.venv\Scripts\python.exe -m uvicorn bookingforge.api:app --host 127.0.0.1 --port 8000
 ```
@@ -72,7 +92,7 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 In **Terminal 2**, install, test and start the new frontend:
 
 ```powershell
-cd "C:\Users\Ayush\bookingforge\frontend"
+cd frontend
 npm install
 npm run test
 npm run typecheck
@@ -127,3 +147,8 @@ The source CSV is **not included**; the public [TidyTuesday hotel-booking datase
 - [Retrospective baseline protocol](docs/BASELINE_PROTOCOL.md)
 - [Local API reference](docs/API_RESEARCH.md)
 - [Full-stack demo and Docker guide](docs/FRONTEND_DEMO.md)
+
+
+## License
+
+[MIT](LICENSE) for project code. The external dataset and dependencies retain their own licenses.
