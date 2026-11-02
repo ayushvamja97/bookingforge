@@ -92,6 +92,51 @@ $env:PYTHONPATH = (Join-Path (Get-Location) "src")
 Do not overwrite the earlier `reports/full_knn_comparison.json` run;
 it is useful as an independent reproducibility comparison.
 
+## Experiment D — probability diagnostic (verified locally)
+
+Local run on **2026-11-02**: **42/42 tests passed**; recreated the same
+training run on 63,334 selected training records and the full 19,339-record
+retrospective validation cohort.
+
+| Model | Training mean probability | Validation mean probability | Validation Brier |
+|---|---:|---:|---:|
+| Logistic regression | 0.408 | 0.554 | 0.2460 |
+| Original NumPy MLP | 0.409 | **0.986** | **0.5950** |
+
+The actual cancellation rate in full retrospective validation was **0.383**.
+The NumPy MLP assigned **P(canceled) > 0.99 to 67.5%** of validation records
+(while only 7.6% of training records received that score). Its subgroup
+validation means were **0.989** for City Hotel and **0.978** for Resort Hotel,
+despite observed rates **0.441** and **0.262**, respectively. Logistic
+regression also overestimated validation risk, but less dramatically.
+
+This is consistent with severe covariate shift/extrapolation, overfitting,
+or both. A data/feature bug is not ruled out. The result alone does **not**
+prove which feature caused the failure. We must not assert that training
+longer or adding GPU capacity will fix probability calibration.
+
+## Experiment E — input distribution drift audit (pending local verification)
+
+A separate `bookingforge.feature_drift` module compares numeric
+means/ranges against historical training support and identifies unseen
+categorical values using **features only**. It uses outcome dates and labels
+for *historical cohort eligibility* through the established loader, but does
+not use target values to calculate feature drift, and never examines test
+outcomes.
+
+PowerShell:
+
+```powershell
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = (Join-Path (Get-Location) "src")
+.\.venv\Scripts\python.exe -m bookingforge.feature_drift --csv data/raw/hotels.csv --output reports/feature_drift.json
+```
+
+This is a **diagnostic**, not a new training run or model selection.
+No validation-driven hyperparameter adjustments should be made based solely
+on repeated exploration of the same cohort.
+
 ## Limitations and next scientific steps
 
 1. The arrival-bounded source is not a complete cohort of bookings made
