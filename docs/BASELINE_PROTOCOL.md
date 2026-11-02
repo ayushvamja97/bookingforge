@@ -11,7 +11,7 @@ Predict whether a booking ultimately ends as a cancellation or no-show (binary `
 - **Training booking-creation cohort:** booking date on/before **2016-08-31**.
 - **Training labels:** only those with final status date on/before **2016-08-31**. This yields 63,334 eligible records in the initial local audit. No outcomes finalized later are used for training.
 - **Validation booking-creation cohort:** booked from **2016-09-01** through **2016-12-31**. **Include every record with a valid eventual final outcome**, even if its outcome became known in 2017. This yields 19,339 records in the local audit. Retrospective validation may score them, but may **never** fit model weights, scalers, imputers, categories, thresholds, or hyperparameters on their labels.
-- **Final test booking-creation cohort:** created from **2017-01-01** through **2017-08-31**. Code must not read final test status/target fields.
+- **Nominal final test booking-creation cohort:** created from **2017-01-01** through **2017-08-31**. The newer model-fitting and scoring routines do not access its outcomes. **Caveat:** legacy aggregate diagnostic code in `cohort.py` did inspect outcome fields across all cohorts, including this cohort, so the dataset cannot be described as completely blind or untouched.
 - The historical training fit date is August 31, 2016. Validation scores represent a *retrospective backtest when eventual outcomes become known*, not a contemporaneous score obtainable on Dec 31, 2016.
 - Temporal validation allows comparing the models on the *same* 19,339 retrospective validation rows without selecting only fast-resolving outcomes.
 
@@ -31,7 +31,7 @@ Predict whether a booking ultimately ends as a cancellation or no-show (binary `
 2. **Arrival-window selection / right truncation.** The dataset is collected by arrivals between July 2015 and August 2017, so reconstructed creation-time cohorts do not represent all bookings created in those periods.
 3. **Feature-timing uncertainty.** Predictor values are not proven to be the values recorded at the original booking date; even fields with plausible names can be edited later.
 4. **Shared booking records / duplicate structures.** No unique event log or booking IDs permit a robust independence/group-level leakage audit.
-5. **Model selection without an untouched final test.** The final cohort remains closed until the model and evaluation protocol have been frozen and independently reviewed.
+5. **No fully blind test cohort.** Model training and scored evaluation did not use nominal final-test outcomes, but previous aggregate audits inspected them. Independent model confirmation will require a new, properly sequestered holdout.
 6. **No real hotel policy.** Future capacity/cost experiments must be labeled simulated, with assumed constraints and costs.
 
 **Interpretation:** This is a legitimate fully computed exploratory algorithmic comparison, with documented threats to validity. It is *not* yet evidence for production cancellation forecasting. Better-captured booking snapshots or a time-to-event/censoring-aware research formulation would strengthen deployment claims.
