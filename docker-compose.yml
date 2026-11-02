@@ -1,0 +1,29 @@
+# Local-only demonstration; model artifacts are trained on the host, never baked into an image.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./models/arrival_v1:/app/models/arrival_v1:ro
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      BOOKINGFORGE_API_URL: http://api:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      api:
+        condition: service_healthy
