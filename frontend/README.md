@@ -35,3 +35,48 @@ The frontend uses **Node.js 22+** and Next.js 16.4.3. Unit tests use the Node 22
 ### Full-stack smoke test
 
 When **both** local servers are running, open a third PowerShell terminal in `frontend` and execute `npm run smoke`. It checks the Next.js health proxy and sends one fabricated booking through **both** saved NumPy models. It is deliberately excluded from offline unit tests/CI, since it needs the local model weights and running services.
+
+### Troubleshooting: smoke test reports HTTP 503
+
+A 503 from `/api/research/status` means the Next.js proxy is running,
+but could not confirm the FastAPI `/health` response and both saved
+model variants. It is **not** a model-accuracy or training failure.
+
+Keep **three PowerShell terminals** open at the same time:
+
+1. **Terminal A — FastAPI from the repository root:**
+
+   ```powershell
+   cd "C:\Users\Ayush\bookingforge"
+   $env:PYTHONPATH = (Join-Path (Get-Location) "src")
+   .\.venv\Scripts\python.exe -m uvicorn bookingforge.api:app --host 127.0.0.1 --port 8000
+   ```
+
+2. **Terminal B — Next.js:**
+
+   ```powershell
+   cd "C:\Users\Ayush\bookingforge\frontend"
+   npm run dev
+   ```
+
+3. **Terminal C — check the backend, the frontend proxy, then smoke:**
+
+   ```powershell
+   Invoke-RestMethod http://127.0.0.1:8000/health
+   Invoke-RestMethod http://127.0.0.1:3000/api/research/status
+   npm run smoke
+   ```
+
+First health response must show `status: ready` and both
+`with_year` and `without_year`. Second must show
+`connected: true` and `models: 2`.
+
+If FastAPI responds directly but Next still returns 503, check
+`frontend/.env.local` or `BOOKINGFORGE_API_URL`: the **local**
+Next.js server should target `http://127.0.0.1:8000`. Docker
+Compose instead sets `http://api:8000` inside its container.
+After changing Next.js environment variables, restart `npm run dev`.
+
+The smoke runner now checks FastAPI **before** Next.js and prints
+specific connection instructions rather than a bare
+`503 !== 200` assertion.
