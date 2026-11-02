@@ -158,42 +158,61 @@ outer-validation diagnostics have already been inspected to generate
 hypotheses, so that cohort can no longer be described as independent
 for future model selection.
 
-## Experiment G — strictly inner chronological year ablation (pending)
+## Experiment G — inner chronological arrival-year ablation (verified locally)
 
-To decide whether raw calendar year deserves a place in our exploratory
-feature set, `bookingforge.inner_year_ablation` performs an ablation using
-a *different, earlier* temporal split. Neither outer-validation labels
-nor final-test labels are accessed:
+On **2026-11-02**, the new local experiment passed **54/54 automated tests**.
+Inner model fitting used **39,507** historically label-mature bookings; the
+inner chronological evaluation covered **6,860** bookings. Each MLP ran
+30 epochs under its original fixed training configuration.
 
-- Inner fit: reservation proxy created **on/before March 31, 2016**, with
-  final outcome known on/before March 31, 2016.
-- Inner validation: reservation proxy created **April 1–May 31, 2016**,
-  scored retrospectively if final outcome was known by **August 31, 2016**.
-- Features: the original 11 provisional predictors versus the same 10
-  **without `arrival_date_year`**.
-- Algorithms: unchanged logistic regression and custom one-hidden-layer
-  NumPy MLP (32 units, 30 epochs, seed 42); preprocessing fit separately
-  on the inner training features for each feature variant.
-- Comparison: inner ROC AUC, average precision, Brier score,
-  predicted probability mean and extreme-confidence fraction. All
-  eligible rows are used, **no subsampling**.
-- This split is **selected by outcome maturity**, not an unbiased
-  prospective cohort. Any measured differences are *diagnostic*; this
-  experiment does not justify declaring a production-ready model.
-- The earlier outer validation motivated this hypothesis, so internal
-  results are not a guarantee of independent confirmation.
+| Model | ROC AUC (higher) | AP (higher) | Brier (lower) | Mean predicted P |
+|---|---:|---:|---:|---:|
+| Logistic WITH arrival year | 0.5789 | 0.4982 | 0.6016 | 0.991 |
+| Logistic WITHOUT arrival year | 0.4231 | 0.3652 | 0.5181 | 0.808 |
+| Original NumPy MLP WITH arrival year | **0.6281** | **0.5381** | 0.5820 | 0.977 |
+| Original NumPy MLP WITHOUT arrival year | 0.4413 | 0.3782 | **0.5054** | 0.814 |
 
-Run the inner experiment from PowerShell:
+Removing year reduced the average predictions and Brier errors, but
+**both models then scored ROC AUC less than 0.5**, meaning their ranking
+was worse than a random ranking on these selected evaluation records.
+Even the reduced Brier score is still concerning. None of these models
+is established as calibrated. Do not assert the no-year feature set
+is superior, let alone ready for deployment.
+
+The label-maturity-selected historical construction and arrival-bounded
+source can generate substantial cohort shift. Also, the year-removal
+hypothesis was motivated by already-inspected outer validation. Therefore
+the outer validation cohort is **not independent for claims about year
+ablation**, despite not being used for fitting in this inner experiment.
+
+## Experiment H — inner-cohort baseline/composition audit (pending verification)
+
+To interpret whether Brier 0.5054 is useful, run
+`bookingforge.inner_cohort_diagnostics`. It uses the SAME existing
+inner cohorts and NO model training to report:
+
+- Inner training vs evaluation cancellation/no-show prevalence
+- Arrival-year counts and cancellation prevalence by arrival year
+- Hotel-level class prevalence
+- Constant training-prior ROC AUC, average precision and Brier score
+- Record counts omitted by outcome availability cutoff
+
+It does not access outer validation/test labels and reports no raw rows.
+The experiment does not tune or replace models.
+
+PowerShell:
 
 ```powershell
 cd "C:\Users\Ayush\bookingforge"
 git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 $env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
-.\.venv\Scripts\python.exe -m bookingforge.inner_year_ablation --csv data/raw/hotels.csv --output reports/inner_year_ablation.json --mlp-epochs 30
+.\.venv\Scripts\python.exe -m bookingforge.inner_cohort_diagnostics --csv data/raw/hotels.csv --output reports/inner_cohort_composition.json
 ```
 
-Do not overwrite the previously verified validation and sensitivity reports.
+After diagnosing the population, any model revision should use a separately
+specified observation-time protocol and held-out prospective-like evaluation,
+not repeatedly refitting to already-seen validation data.
 
 ## Limitations and next scientific steps
 
