@@ -54,14 +54,17 @@ class FullComparisonTests(unittest.TestCase):
             writer.writeheader()
             writer.writerows(rows)
 
-        report = run_full_comparison(self.path, k=1, batch_size=2)
+        report = run_full_comparison(self.path, k=1, batch_size=2, mlp_hidden=4, mlp_epochs=2, mlp_batch_size=2)
         self.assertEqual(report["training_rows"], 4)
         self.assertEqual(report["validation_rows"], 4)
         self.assertFalse(report["final_test_labels_accessed"])
         self.assertEqual(
             set(report["validation_metrics"]),
-            {"prior_probability", "logistic_regression", "custom_numpy_knn"},
+            {"prior_probability", "logistic_regression", "custom_numpy_knn", "custom_numpy_mlp"},
         )
+        self.assertEqual(report["custom_numpy_mlp"]["trained_rows_used"], 4)
+        self.assertFalse(report["custom_numpy_mlp"]["validation_used_for_training_or_early_stopping"])
+        self.assertEqual(len(report["custom_numpy_mlp"]["training_objective_by_epoch"]), 2)
         self.assertEqual(report["custom_knn"]["training_rows_used"], 4)
         self.assertEqual(report["custom_knn"]["validation_rows_scored"], 4)
 
