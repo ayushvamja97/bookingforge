@@ -366,6 +366,63 @@ ineligible for claims of independent external confirmation.
 See locally generated aggregate JSON:
 `reports/arrival_reliability.json`.
 
+## Experiment K — portable NumPy model export (pending local verification)
+
+`bookingforge.model_artifact` now trains and exports the two **unchanged
+and separately labeled** original NumPy MLP configurations:
+`with_year` and `without_year`. By default it trains **both**,
+rather than claiming one is the winner. They use identical 2015–Aug
+2016 eligible arrival-based training data, the 2016-09-30 training
+outcome cutoff, seed 42, 32 hidden units, mini-batch size 256,
+Adam learning rate 0.001, L2 0.0001, and 30 epochs.
+
+The module saves, under the ignored `models/arrival_v1/` directory:
+
+- `arrival_mlp_with_year.npz` and `arrival_mlp_with_year.json`
+- `arrival_mlp_without_year.npz` and
+  `arrival_mlp_without_year.json`
+
+Each NumPy archive stores **only** W1, b1, W2, b2 arrays. JSON stores
+the expected feature schema, train-fitted median imputations,
+standardization means/scales, one-hot categorical support, training
+cohort/method settings, dataset SHA256, and the NumPy archive SHA256.
+The inference loader checks archive integrity, model tensor shapes,
+feature allowlist, and the schema, loads with `allow_pickle=False`,
+and reproduces sklearn one-hot encoding (including unseen categories
+mapped to all-zero indicator vectors) without needing the fitted
+scikit-learn preprocessing object.
+
+**Model reproducibility test:** The trainer refits the declared
+configurations using ONLY training labels, serializes them, reloads
+each artifact, and compares raw cancellation probabilities to the
+original in-memory model over all **14,517 validation input rows**.
+It requires a maximum absolute prediction discrepancy no greater than
+`1e-12`, and does not use retrospective validation labels to train
+or select either configuration. It does not inspect 2017 arrival
+outcomes; older aggregate audits already accessed nominal
+2017 test labels.
+
+No per-booking data or validation predictions are saved. A separate
+aggregate JSON report records the verification and file hashes.
+**An exactly reproducible research model is not a calibrated or
+approved booking-time predictor.** All source and predictor-timing
+uncertainties from the preceding experiments remain in force.
+
+Windows PowerShell:
+
+```powershell
+cd "C:\Users\Ayush\bookingforge"
+git pull --ff-only origin main
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+$env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
+.\.venv\Scripts\python.exe -m bookingforge.model_artifact --csv data/raw/hotels.csv --output-dir models/arrival_v1 --report reports/arrival_artifact_verification.json --variant both --epochs 30
+```
+
+**Expected tests: 72** (previous 67 verified plus five new artifact
+tests). Experiment K has not yet been executed with the user's
+full local dataset, so no export hashes, measured error or final
+success is claimed yet.
+
 ## Limitations and next scientific steps
 
 1. The arrival-bounded source is not a complete cohort of bookings made
