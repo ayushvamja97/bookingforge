@@ -366,7 +366,7 @@ ineligible for claims of independent external confirmation.
 See locally generated aggregate JSON:
 `reports/arrival_reliability.json`.
 
-## Experiment K — portable NumPy model export (pending local verification)
+## Experiment K — portable NumPy model export (verified on local full dataset)
 
 `bookingforge.model_artifact` now trains and exports the two **unchanged
 and separately labeled** original NumPy MLP configurations:
@@ -418,10 +418,61 @@ $env:PYTHONPATH = "C:\Users\Ayush\bookingforge\src"
 .\.venv\Scripts\python.exe -m bookingforge.model_artifact --csv data/raw/hotels.csv --output-dir models/arrival_v1 --report reports/arrival_artifact_verification.json --variant both --epochs 30
 ```
 
-**Expected tests: 72** (previous 67 verified plus five new artifact
-tests). Experiment K has not yet been executed with the user's
-full local dataset, so no export hashes, measured error or final
-success is claimed yet.
+**Local full-dataset export verified on 2026-11-02:** both fixed
+30-epoch original NumPy MLP variants trained on **58,792** historical
+arrival records. With-year training objective ended **0.527097**;
+without-year objective ended **0.532010**. Both variants were saved
+to the four specified `.npz`/`.json` model files, reloaded, and
+achieved **maximum absolute prediction difference = 0** on every
+retrospective validation *feature* row, as required.
+
+Verification metadata saved locally to
+`reports/arrival_artifact_verification.json`. The specific
+SHA256 values have not been supplied in the user's log, so no
+hash values are invented.
+
+**Test verification caveat:** the user's message verified the
+full export, not the newly extended 72-test suite. Five artifact
+unit tests have been committed but have **not been shown as passed**
+on the user's device. The prior 67-test suite is verified.
+
+## Experiment L — local-only FastAPI inference (pending verification)
+
+The new `bookingforge.api` is an **optional**, unauthenticated
+local research/demo service intended for `127.0.0.1` only.
+It does **not** retrain, tune, recalibrate, score historical
+outcomes, or make hotel operating decisions. At startup it loads
+the existing SHA256-verified research NumPy artifacts, failing
+closed if the files are missing, tampered or incompatible.
+
+Routes:
+
+- `GET /health` — confirms both original models are loaded.
+- `GET /v1/research/models` — exposes schema, training-row count,
+  dataset fingerprint, and arrival-year inclusion for each variant.
+- `POST /v1/research/predict` — accepts strict synthetic
+  2015–2016 booking-like inputs and a required `with_year` or
+  `without_year` variant; returns a *research score* plus
+  warnings. Unknown fields, outcome/status columns, malformed
+  dates and 2017/future arrival dates must receive HTTP 422.
+
+The endpoint requires no real guest data, makes no claims of
+booking-time calibration and is unsuitable for public network
+deployment. **Do not bind to 0.0.0.0.** No production
+authentication, authorization, rate limiting, guest privacy
+assurance, or service hardening is claimed.
+
+Its optional packages are pinned separately in
+`requirements-api.txt` (FastAPI, Uvicorn, HTTPX).
+Five synthetic HTTP tests check model-file startup, repeatable
+prediction parity with loaded artifacts, strict input rejection,
+and fail-closed startup. An end-to-end PowerShell walkthrough
+using fabricated input is in [the research API guide](API_RESEARCH.md).
+
+Expected full suite after five artifact tests and five API tests:
+**77 tests**, pending local verification. HTTP inference
+output/latency/performance has not yet been observed; no
+specific prediction score is reported.
 
 ## Limitations and next scientific steps
 
